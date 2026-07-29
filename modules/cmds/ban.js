@@ -1,221 +1,182 @@
-const { findUid } = global.utils;
-const moment = require("moment-timezone");
+const fs = require("fs-extra");
 
 module.exports = {
-	config: {
-		name: "ban",
-		version: "1.4",
-		author: "NTKhang",
-		countDown: 5,
-		role: 1,
-		description: {
-			vi: "Cấm thành viên khỏi box chat",
-			en: "Ban user from box chat"
-		},
-		category: "box chat",
-		guide: {
-			vi: "   {pn} [@tag|uid|link fb|reply] [<lý do cấm>|để trống nếu không có lý do]: Cấm thành viên khỏi box chat"
-				+ "\n   {pn} check: Kiểm tra thành viên bị cấm và kick thành viên đó ra khỏi box chat"
-				+ "\n   {pn} unban [@tag|uid|link fb|reply]: Bỏ cấm thành viên khỏi box chat"
-				+ "\n   {pn} list: Xem danh sách thành viên bị cấm",
-			en: "   {pn} [@tag|uid|fb link|reply] [<reason>|leave blank if no reason]: Ban user from box chat"
-				+ "\n   {pn} check: Check banned members and kick them out of the box chat"
-				+ "\n   {pn} unban [@tag|uid|fb link|reply]: Unban user from box chat"
-				+ "\n   {pn} list: View the list of banned members"
-		}
-	},
+  config: {
+    name: "ban",
+    version: "2.0.5",
+    author: "rX",
+    countDown: 5,
+    role: 0,
+    shortDescription: "Permanently ban members from the group",
+    longDescription: "Warn / ban members from the group, view warns, unban, reset data",
+    category: "group",
+    guide: {
+      en:
+`{p}ban [tag] or [reply] "reason" - warn a user (auto ban after 1 warning)
+{p}ban listban - see the list of banned users
+{p}ban unban [id] - remove a user from the banned list
+{p}ban view [@tag] / view all / view - see warn history
+{p}ban reset - reset all warn/ban data in the group`
+    }
+  },
 
-	langs: {
-		vi: {
-			notFoundTarget: "⚠️ | Vui lòng tag người cần cấm hoặc nhập uid hoặc link fb hoặc phản hồi tin nhắn của người cần cấm",
-			notFoundTargetUnban: "⚠️ | Vui lòng tag người cần bỏ cấm hoặc nhập uid hoặc link fb hoặc phản hồi tin nhắn của người cần bỏ cấm",
-			userNotBanned: "⚠️ | Người mang id %1 không bị cấm khỏi box chat này",
-			unbannedSuccess: "✅ | Đã bỏ cấm %1 khỏi box chat!",
-			cantSelfBan: "⚠️ | Bạn không thể tự cấm chính mình!",
-			cantBanAdmin: "❌ | Bạn không thể cấm quản trị viên!",
-			existedBan: "❌ | Người này đã bị cấm từ trước!",
-			noReason: "Không có lý do",
-			bannedSuccess: "✅ | Đã cấm %1 khỏi box chat!",
-			needAdmin: "⚠️ | Bot cần quyền quản trị viên để kick thành viên bị cấm",
-			noName: "Người dùng facebook",
-			noData: "📑 | Không có thành viên nào bị cấm trong box chat này",
-			listBanned: "📑 | Danh sách thành viên bị cấm trong box chat này (trang %1/%2)",
-			content: "%1/ %2 (%3)\nLý do: %4\nThời gian cấm: %5\n\n",
-			needAdminToKick: "⚠️ | Thành viên %1 (%2) bị cấm khỏi box chat, nhưng bot không có quyền quản trị viên để kick thành viên này, vui lòng cấp quyền quản trị viên cho bot để kick thành viên này",
-			bannedKick: "⚠️ | %1 đã bị cấm khỏi box chat từ trước!\nUID: %2\nLý do: %3\nThời gian cấm: %4\n\nBot đã tự động kick thành viên này"
-		},
-		en: {
-			notFoundTarget: "⚠️ | Please tag the person to ban or enter uid or fb link or reply to the message of the person to ban",
-			notFoundTargetUnban: "⚠️ | Please tag the person to unban or enter uid or fb link or reply to the message of the person to unban",
-			userNotBanned: "⚠️ | The person with id %1 is not banned from this box chat",
-			unbannedSuccess: "✅ | Unbanned %1 from box chat!",
-			cantSelfBan: "⚠️ | You can't ban yourself!",
-			cantBanAdmin: "❌ | You can't ban the administrator!",
-			existedBan: "❌ | This person has been banned before!",
-			noReason: "No reason",
-			bannedSuccess: "✅ | Banned %1 from box chat!",
-			needAdmin: "⚠️ | Bot needs administrator permission to kick banned members",
-			noName: "Facebook user",
-			noData: "📑 | There are no banned members in this box chat",
-			listBanned: "📑 | List of banned members in this box chat (page %1/%2)",
-			content: "%1/ %2 (%3)\nReason: %4\nBan time: %5\n\n",
-			needAdminToKick: "⚠️ | Member %1 (%2) has been banned from box chat, but the bot does not have administrator permission to kick this member, please grant administrator permission to the bot to kick this member",
-			bannedKick: "⚠️ | %1 has been banned from box chat before!\nUID: %2\nReason: %3\nBan time: %4\n\nBot has automatically kicked this member"
-		}
-	},
+  onStart: async function ({ api, event, args, message, usersData, role }) {
+    const { threadID, messageID, senderID } = event;
 
-	onStart: async function ({ message, event, args, threadsData, getLang, usersData, api }) {
-		const { members, adminIDs } = await threadsData.get(event.threadID);
-		const { senderID } = event;
-		let target;
-		let reason;
+    const info = await api.getThreadInfo(threadID);
+    if (!info.adminIDs.some(item => item.id == api.getCurrentUserID())) {
+      return message.reply("The bot needs group admin rights to use this command\nPlease add and try again!");
+    }
 
-		const dataBanned = await threadsData.get(event.threadID, 'data.banned_ban', []);
+    const cacheDir = __dirname + "/cache";
+    const cachePath = cacheDir + "/bans.json";
+    if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+    if (!fs.existsSync(cachePath)) {
+      fs.writeFileSync(cachePath, JSON.stringify({ warns: {}, banned: {} }));
+    }
 
-		if (args[0] == 'unban') {
-			if (!isNaN(args[1]))
-				target = args[1];
-			else if (args[1]?.startsWith('https'))
-				target = await findUid(args[1]);
-			else if (Object.keys(event.mentions || {}).length)
-				target = Object.keys(event.mentions)[0];
-			else if (event.messageReply?.senderID)
-				target = event.messageReply.senderID;
-			else
-				return api.sendMessage(getLang('notFoundTargetUnban'), event.threadID, event.messageID);
+    const bans = JSON.parse(fs.readFileSync(cachePath));
+    // { warns: { threadID: { userID: [reasons] } }, banned: { threadID: [userID] } }
 
-			const index = dataBanned.findIndex(item => item.id == target);
-			if (index == -1)
-				return api.sendMessage(getLang('userNotBanned', target), event.threadID, event.messageID);
+    if (!bans.warns.hasOwnProperty(threadID)) {
+      bans.warns[threadID] = {};
+      fs.writeFileSync(cachePath, JSON.stringify(bans, null, 2));
+    }
 
-			dataBanned.splice(index, 1);
-			await threadsData.set(event.threadID, dataBanned, 'data.banned_ban');
-			const userName = members[target]?.name || await usersData.getName(target) || getLang('noName');
+    // isAdmin = group admin (role 1) or bot admin (role 2)
+    const isAdmin = role >= 1;
 
-			return api.sendMessage(getLang('unbannedSuccess', userName), event.threadID, event.messageID);
-		}
-		else if (args[0] == "check") {
-			if (!dataBanned.length)
-				return;
-			for (const user of dataBanned) {
-				if (event.participantIDs.includes(user.id))
-					api.removeUserFromGroup(user.id, event.threadID);
-			}
-		}
+    if (args[0] == "view") {
+      if (!args[1]) {
+        const mywarn = bans.warns[threadID][senderID];
+        if (!mywarn || !mywarn.length) return message.reply("✅ You have never been warned");
+        let msg = "";
+        for (const reasonwarn of mywarn) msg += `${reasonwarn}\n`;
+        return message.reply(`❎ You have been warned for the reason:\n${msg}`);
+      }
 
-		if (event.messageReply?.senderID) {
-			target = event.messageReply.senderID;
-			reason = args.join(' ');
-		}
-		else if (Object.keys(event.mentions || {}).length) {
-			target = Object.keys(event.mentions)[0];
-			reason = args.join(' ').replace(event.mentions[target], '');
-		}
-		else if (!isNaN(args[0])) {
-			target = args[0];
-			reason = args.slice(1).join(' ');
-		}
-		else if (args[0]?.startsWith('https')) {
-			target = await findUid(args[0]);
-			reason = args.slice(1).join(' ');
-		}
-		else if (args[0] == 'list') {
-			if (!dataBanned.length)
-				return message.reply(getLang('noData'));
-			const limit = 20;
-			const page = parseInt(args[1] || 1) || 1;
-			const start = (page - 1) * limit;
-			const end = page * limit;
-			const data = dataBanned.slice(start, end);
-			let msg = '';
-			let count = 0;
-			for (const user of data) {
-				count++;
-				const name = members[user.id]?.name || await usersData.getName(user.id) || getLang('noName');
-				const time = user.time;
-				msg += getLang('content', start + count, name, user.id, user.reason, time);
-			}
-			return message.reply(getLang('listBanned', page, Math.ceil(dataBanned.length / limit)) + '\n\n' + msg);
-		}
+      else if (Object.keys(event.mentions).length != 0) {
+        let messageOut = "";
+        const mentions = Object.keys(event.mentions);
+        for (const id of mentions) {
+          const name = (await api.getUserInfo(id))[id].name;
+          let msg = "";
+          const reasonarr = bans.warns[threadID][id];
+          if (typeof reasonarr != "object") {
+            msg += " Never been warned\n";
+          } else {
+            for (const reason of reasonarr) msg += "" + reason + "\n";
+          }
+          messageOut += "⭐️" + name + " :" + msg + "";
+        }
+        return message.reply(messageOut);
+      }
 
-		if (!target)
-			return message.reply(getLang('notFoundTarget'));
-		if (target == senderID)
-			return message.reply(getLang('cantSelfBan'));
-		if (adminIDs.includes(target))
-			return message.reply(getLang('cantBanAdmin'));
+      else if (args[1] == "all") {
+        const dtwbox = bans.warns[threadID];
+        let allwarn = "";
+        for (const idtvw in dtwbox) {
+          const name = (await api.getUserInfo(idtvw))[idtvw].name;
+          let msg = "";
+          for (const reasonwtv of dtwbox[idtvw]) msg += `${reasonwtv}`;
+          allwarn += `${name} : ${msg}\n`;
+        }
+        return allwarn == ""
+          ? message.reply("✅ No one in your group has been warned yet")
+          : message.reply("List of members who have been warned:\n" + allwarn);
+      }
+      return message.SyntaxError();
+    }
 
-		const banned = dataBanned.find(item => item.id == target);
-		if (banned)
-			return message.reply(getLang('existedBan'));
+    else if (args[0] == "unban") {
+      if (!isAdmin) return message.reply("❎ Right cunt border!");
 
-		const name = members[target]?.name || (await usersData.getName(target)) || getLang('noName');
-		const time = moment().tz(global.GoatBot.config.timeZone).format('HH:mm:ss DD/MM/YYYY');
-		const data = {
-			id: target,
-			time,
-			reason: reason || getLang('noReason')
-		};
+      const id = parseInt(args[1]);
+      const mybox = bans.banned[threadID] || [];
+      if (!id) return message.reply("❎ Need to enter the id of the person to be removed from the banned list of the group");
+      if (!mybox.includes(id)) return message.reply("✅ This person hasn't been banned from your group yet");
 
-		dataBanned.push(data);
-		await threadsData.set(event.threadID, dataBanned, 'data.banned_ban');
-		message.reply(getLang('bannedSuccess', name), () => {
-			if (members.some(item => item.userID == target)) {
-				if (adminIDs.includes(api.getCurrentUserID())) {
-					if (event.participantIDs.includes(target))
-						api.removeUserFromGroup(target, event.threadID);
-				}
-				else {
-					message.send(getLang('needAdmin'), (err, info) => {
-						global.GoatBot.onEvent.push({
-							messageID: info.messageID,
-							onStart: ({ event }) => {
-								if (event.logMessageType === "log:thread-admins" && event.logMessageData.ADMIN_EVENT == "add_admin") {
-									const { TARGET_ID } = event.logMessageData;
-									if (TARGET_ID == api.getCurrentUserID()) {
-										api.removeUserFromGroup(target, event.threadID, () => global.GoatBot.onEvent = global.GoatBot.onEvent.filter(item => item.messageID != info.messageID));
-									}
-								}
-							}
-						});
-					});
-				}
-			}
-		});
-	},
+      mybox.splice(mybox.indexOf(id), 1);
+      delete bans.warns[threadID][id];
+      fs.writeFileSync(cachePath, JSON.stringify(bans, null, 2));
+      return message.reply(`✅ Removed the member with id ${id} from the group banned list`);
+    }
 
-	onEvent: async function ({ event, api, threadsData, getLang, message }) {
-		if (event.logMessageType == "log:subscribe") {
-			const { threadID } = event;
-			const dataBanned = await threadsData.get(threadID, 'data.banned_ban', []);
-			const usersAdded = event.logMessageData.addedParticipants;
+    else if (args[0] == "listban") {
+      const mybox = bans.banned[threadID] || [];
+      let msg = "";
+      for (const iduser of mybox) {
+        const name = (await api.getUserInfo(iduser))[iduser].name;
+        msg += "╔Name: " + name + "\n╚ID: " + iduser + "\n";
+      }
+      return msg == ""
+        ? message.reply("✅ No one in your group has been banned from the group yet")
+        : message.reply("❎ Members who have been banned from the group:\n" + msg);
+    }
 
-			for (const user of usersAdded) {
-				const { userFbId, fullName } = user;
-				const banned = dataBanned.find(item => item.id == userFbId);
-				if (banned) {
-					const reason = banned.reason || getLang('noReason');
-					const time = banned.time;
-					return api.removeUserFromGroup(userFbId, threadID, err => {
-						if (err)
-							return message.send(getLang('needAdminToKick', fullName, userFbId), (err, info) => {
-								global.GoatBot.onEvent.push({
-									messageID: info.messageID,
-									onStart: ({ event }) => {
-										if (event.logMessageType === "log:thread-admins" && event.logMessageData.ADMIN_EVENT == "add_admin") {
-											const { TARGET_ID } = event.logMessageData;
-											if (TARGET_ID == api.getCurrentUserID()) {
-												api.removeUserFromGroup(userFbId, event.threadID, () => global.GoatBot.onEvent = global.GoatBot.onEvent.filter(item => item.messageID != info.messageID));
-											}
-										}
-									}
-								});
-							});
-						else
-							message.send(getLang('bannedKick', fullName, userFbId, reason, time));
-					});
-				}
-			}
-		}
-	}
+    else if (args[0] == "reset") {
+      if (!isAdmin) return message.reply("❎ Right cunt border!");
+
+      bans.warns[threadID] = {};
+      bans.banned[threadID] = [];
+      fs.writeFileSync(cachePath, JSON.stringify(bans, null, 2));
+      return message.reply("Reset all data in your group");
+    }
+
+    //◆━━━━━━━━━◆WARN◆━━━━━━━━━◆\\
+    else {
+      if (event.type != "message_reply" && Object.keys(event.mentions).length == 0) {
+        return message.SyntaxError();
+      }
+
+      if (!isAdmin) return message.reply("Right cunt border!");
+
+      let reason = "";
+      let iduser;
+
+      if (event.type == "message_reply") {
+        iduser = [event.messageReply.senderID];
+        reason = (args.join(" ")).trim();
+      }
+
+      else if (Object.keys(event.mentions).length != 0) {
+        iduser = Object.keys(event.mentions);
+        const namearr = Object.values(event.mentions);
+        let messageBody = args.join(" ");
+        for (const valuemention of namearr) {
+          messageBody = messageBody.replace(valuemention, "");
+        }
+        reason = messageBody.replace(/\s+/g, " ").trim();
+      }
+
+      const arraytag = [];
+      const arrayname = [];
+
+      for (const iid of iduser) {
+        const id = parseInt(iid);
+        const nametag = (await api.getUserInfo(id))[id].name;
+        arraytag.push({ id: id, tag: nametag });
+
+        if (!reason) reason = "No reason was given";
+
+        const dtwmybox = bans.warns[threadID];
+        if (!dtwmybox.hasOwnProperty(id)) dtwmybox[id] = [];
+
+        arrayname.push(nametag);
+        const pushreason = bans.warns[threadID][id];
+        pushreason.push(reason);
+
+        if (!bans.banned[threadID]) bans.banned[threadID] = [];
+
+        if (bans.warns[threadID][id].length > 0) {
+          api.removeUserFromGroup(id, threadID);
+          bans.banned[threadID].push(id);
+          fs.writeFileSync(cachePath, JSON.stringify(bans, null, 2));
+        }
+      }
+
+      message.reply({ body: `Banned members ${arrayname.join(", ")} permanently leave the group for the reason: ${reason}`, mentions: arraytag });
+      fs.writeFileSync(cachePath, JSON.stringify(bans, null, 2));
+    }
+  }
 };
