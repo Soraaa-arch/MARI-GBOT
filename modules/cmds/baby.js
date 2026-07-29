@@ -45,7 +45,7 @@ module.exports = {
   config: {
     name: "baby",
     aliases: ["mari", "maria", "hippi", "xan", "bby", "vabi"],
-    version: "3.8",
+    version: "4.1",
     author: "rX",
     countDown: 0,
     role: 0,
