@@ -3,7 +3,7 @@ module.exports = {
     name: "goatstore",
     aliases: ["gs", "cmdstore", "commandstore"],
     version: "8.1.0",
-    author: "rX & EryXenX",
+    author: "rX 〄 EryXenX",
     countDown: 3,
     role: 2,
     shortDescription: "GoatBot Store — Search, AutoUpdate, Install, Upload, AutoSync",
@@ -23,7 +23,8 @@ module.exports = {
         "{pn} upload <fileName> — Upload command\n" +
         "{pn} upload event <fileName> — Upload event\n" +
         "{pn} sync — Manual sync\n" +
-        "{pn} autoupdate on/off — Toggle silent self-update\n" +
+        "{pn} cmdupdate — Check installed rX commands for store updates\n" +
+        "{pn} autoupdate on/off — Toggle silent self-update (also silences command updates)\n" +
         "{pn} delete <id> <secret> — Delete"
     },
     autoSync: true
@@ -221,7 +222,7 @@ module.exports = {
   "bnN0IGluc3RhbGxEaXIgPSBpc0V2ZW50ID8gcGF0aC5qb2luKGJhc2VEaXIsICJzY3JpcHRzIiwgImV2" +
   "ZW50cyIpIDogcGF0aC5qb2luKGJhc2VEaXIsICJzY3JpcHRzIiwgImNtZHMiKTsKICBjb25zdCBmaWxl" +
   "UGF0aCA9IHBhdGguam9pbihpbnN0YWxsRGlyLCBmaWxlTmFtZSk7CiAgY29uc3QgbG9jTGFiZWwgPSBp" +
-  "c0V2ZW50ID8gYHNjcmlwdHMvZXZlbnRzLyR7ZmlsZU5hbWV9YCA6IGBzY3JpcHRzL2NtZHMvJHtmaWxl" +
+  "c0V2ZW50ID8gYHNjcmlwdHMvZXZlbnRzLyR7ZmlsZU5hbWV9YCA6IGBtb2R1bGVzL2NtZHMvJHtmaWxl" +
   "TmFtZX1gOwoKICB0cnkgewogICAgaWYgKCFmcy5leGlzdHNTeW5jKGluc3RhbGxEaXIpKSBmcy5ta2Rp" +
   "clN5bmMoaW5zdGFsbERpciwgeyByZWN1cnNpdmU6IHRydWUgfSk7CiAgICBmcy53cml0ZUZpbGVTeW5j" +
   "KGZpbGVQYXRoLCBjbWREYXRhLnJhd0NvZGUsICJ1dGYtOCIpOwogIH0gY2F0Y2ggKGVycikgewogICAg" +
@@ -339,7 +340,7 @@ module.exports = {
   "ICAgICAgICAgICB8fCBjb250ZW50Lm1hdGNoKC9jcmVkaXRzXHMqOlxzKlsiJ2BdKC4qPylbIidgXS8p" +
   "Py5bMV0KICAgICAgICAgICAgICB8fCBudWxsOwogIGNvbnN0IHZlcnNpb24gPSBjb250ZW50Lm1hdGNo" +
   "KC92ZXJzaW9uXHMqOlxzKlsiJ2BdKC4qPylbIidgXS8pPy5bMV0gfHwgIjAuMC4wIjsKICByZXR1cm4g" +
-  "eyBuYW1lLCBhdXRob3IsIHZlcnNpb24gfTsKfQoKLy8gU2NhbnMgc2NyaXB0cy9jbWRzLCBrZWVwcyBv" +
+  "eyBuYW1lLCBhdXRob3IsIHZlcnNpb24gfTsKfQoKLy8gU2NhbnMgbW9kdWxlcy9jbWRzLCBrZWVwcyBv" +
   "bmx5IGZpbGVzIHdob3NlIGF1dGhvciBtYXRjaGVzIFRSQUNLRURfQVVUSE9SLAovLyBhbmQgcmV0dXJu" +
   "cyB0aG9zZSB3aGVyZSB0aGUgc3RvcmUgaGFzIGEgc3RyaWN0bHkgbmV3ZXIgdmVyc2lvbi4KYXN5bmMg" +
   "ZnVuY3Rpb24gY2hlY2tDb21tYW5kVXBkYXRlcygpIHsKICBjb25zdCBmaWxlcyA9IGdldExvY2FsQ29t" +
