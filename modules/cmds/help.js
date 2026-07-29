@@ -1,274 +1,231 @@
-const { getPrefix } = global.utils;
-const { commands, aliases } = global.GoatBot;
+const fs = require("fs");
+const path = require("path");
 
-function fancyText(text) {
-  const map = {
-    'a': '𝖺', 'b': '𝖻', 'c': '𝖼', 'd': '𝖽', 'e': '𝖾', 'f': '𝖿', 'g': '𝗀', 'h': '𝗁', 'i': '𝗂',
-    'j': '𝗃', 'k': '𝗄', 'l': '𝗅', 'm': '𝗆', 'n': '𝗇', 'o': '𝗈', 'p': '𝗉', 'q': '𝗊', 'r': '𝗋',
-    's': '𝗌', 't': '𝗍', 'u': '𝗎', 'v': '𝗏', 'w': '𝗐', 'x': '𝗑', 'y': '𝗒', 'z': '𝗓',
-    'A': '𝖠', 'B': '𝖡', 'C': '𝖢', 'D': '𝖣', 'E': '𝖤', 'F': '𝖥', 'G': '𝖦', 'H': '𝖧', 'I': '𝖨',
-    'J': '𝖩', 'K': '𝖪', 'L': '𝖫', 'M': '𝖬', 'N': '𝖭', 'O': '𝖮', 'P': '𝖯', 'Q': '𝖰', 'R': '𝖱',
-    'S': '𝖲', 'T': '𝖳', 'U': '𝖴', 'V': '𝖵', 'W': '𝖶', 'X': '𝖷', 'Y': '𝖸', 'Z': '𝖹'
-  };
-  return text.split("").map(c => map[c] || c).join("");
-}
-
-const categoryEmoji = (category) => {
-  const emojiMap = {
-    'info': '📚',
-    'information': 'ℹ️',
-    'system': '⚙️',
-    'bot': '🤖',
-    'admin': '👑',
-    'administration': '👑',
-    'owner': '👁️',
-    'group': '👥',
-    'groups': '👥',
-    'fun': '🎮',
-    'entertainment': '🎭',
-    'game': '🎲',
-    'games': '🎮',
-    'media': '🎵',
-    'music': '🎶',
-    'audio': '🎵',
-    'video': '🎬',
-    'utility': '🔧',
-    'tools': '🛠️',
-    'economy': '💰',
-    'money': '💸',
-    'banking': '🏦',
-    'image': '🖼️',
-    'photo': '📸',
-    'picture': '🖼️',
-    'education': '🎓',
-    'learning': '📚',
-    'nsfw': '🔞',
-    'adult': '🔞',
-    'chat': '💬',
-    'communication': '💬',
-    'ai': '🤖',
-    'artificial intelligence': '🧠',
-    'search': '🔍',
-    'productivity': '📈',
-    'security': '🛡️',
-    'privacy': '🔒',
-    'misc': '📦',
-    'miscellaneous': '📦',
-    'other': '🎭',
-    'action': '🎯',
-    'interaction': '🤝',
-    'creative': '🎨',
-    'design': '✏️',
-    'data': '📊',
-    'analytics': '📈',
-    'gaming': '🎮',
-    'world': '🌍',
-    'geography': '🗺️',
-    'social': '📱',
-    'social media': '📱',
-    'food': '🍕',
-    'drink': '🍹',
-    'love': '💖',
-    'romance': '💘',
-    'friendship': '🤝',
-    'family': '👨‍👩‍👧‍👦',
-    'health': '🏥',
-    'fitness': '💪',
-    'sports': '⚽',
-    'travel': '✈️',
-    'shopping': '🛍️',
-    'business': '💼',
-    'work': '💼',
-    'study': '📖',
-    'book': '📚',
-    'movie': '🎬',
-    'tv': '📺',
-    'anime': '🇯🇵',
-    'manga': '📖',
-    'comic': '📚',
-    'cartoon': '🖼️',
-    'art': '🎨',
-    'drawing': '✏️',
-    'painting': '🎨',
-    'photography': '📷',
-    'nature': '🌿',
-    'animal': '🐶',
-    'pet': '🐾',
-    'car': '🚗',
-    'vehicle': '🚗',
-    'technology': '💻',
-    'computer': '💻',
-    'phone': '📱',
-    'internet': '🌐',
-    'web': '🌐',
-    'network': '🔗',
-    'science': '🔬',
-    'math': '🧮',
-    'physics': '⚛️',
-    'chemistry': '🧪',
-    'biology': '🧬',
-    'history': '📜',
-    'culture': '🎎',
-    'religion': '🕌',
-    'spiritual': '🙏',
-    'weather': '🌤️',
-    'time': '🕒',
-    'date': '📅',
-    'calendar': '📅',
-    'reminder': '⏰',
-    'alarm': '⏰',
-    'timer': '⏱️',
-    'stopwatch': '⏱️',
-    'counter': '🔢',
-    'default': '📁'
-  };
-  
-  const cat = category.toLowerCase();
-  
-  if (emojiMap[cat]) {
-    return emojiMap[cat];
-  }
-  
-  for (const [key, emoji] of Object.entries(emojiMap)) {
-    if (cat.includes(key) || key.includes(cat)) {
-      return emoji;
-    }
-  }
-  
-  return emojiMap.default;
+module.exports.config = {
+  name: "help",
+  version: "4.5.0",
+  author: "rX",
+  countDown: 5,
+  role: 0,
+  category: "system",
+  guide: {
+    en: "{pn} [command name | page number]\nReply with a page number to jump to that page.",
+  },
+  description: "Paged help menu 2 pages + random GIF attached both pages, auto unsend 30s, reply-to-navigate",
 };
 
-module.exports = {
-  config: {
-    name: "help",
-    version: "2.4",
-    author: "Azadx69x",
-    role: 0,
-    countDown: 5,
-    description: { 
-      en: "📚 Show command list or command details" 
-    },
-    category: "Info",
-    guide: {
-      en: "{pn} [command_name]"
-    }
-  },
+const UNSEND_DELAY = 30000;
 
-  onStart: async function ({ message, args, event, role }) {
-    const prefix = getPrefix(event.threadID);
-    const input = args[0]?.toLowerCase();
+// ---------- Shared builder so onStart and onReply render identically ----------
+async function buildHelpPage({ api, page }) {
+  const commandDir = __dirname;
+  const files = fs.readdirSync(commandDir).filter(f => f.endsWith(".js"));
 
-    let cmd = null;
-    
-    if (input) {
-      if (commands.has(input)) {
-        cmd = commands.get(input);
-      } else if (aliases.has(input)) {
-        cmd = commands.get(aliases.get(input));
-      } else {
-        return message.reply(
-`┍━━━[ ❌ 𝗡𝗢𝗧 𝗙𝗢𝗨𝗡𝗗 ]━━━◊
-┋➥ 🔍 𝗖𝗼𝗺𝗺𝗮𝗻𝗱: "${input}"
-┋➥ 📌 𝗨𝘀𝗲: ${prefix}𝗵𝗲𝗹𝗽
-┋➥     𝗳𝗼𝗿 𝗮𝗹𝗹 𝗰𝗼𝗺𝗺𝗮𝗻𝗱𝘀
-┕━━━━━━━━━━━━━━━━━━━━━◊`
-        );
-      }
-    }
-    
-    if (cmd) {
-      const cfg = cmd.config;
-      const desc = typeof cfg.description === "string" ? cfg.description : cfg.description?.en || "❌ 𝗡𝗼 𝗱𝗲𝘀𝗰𝗿𝗶𝗽𝘁𝗶𝗼𝗻";
-      const usage = typeof cfg.guide?.en === "string" ? 
-        cfg.guide.en.replace(/\{pn\}/g, prefix + cfg.name) : 
-        `${prefix}${cfg.name}`;
-
-      const aliasesList = cfg.aliases ? 
-        cfg.aliases.map(a => `${prefix}${a}`).join(", ") : 
-        "❌ 𝗡𝗼𝗻𝗲";
-
-      const helpMessage = `┍━━━[ 📚 RS. 𝗕𝗢𝗧 𝗛𝗘𝗟𝗣 ]━━━◊
-┋➥ 📛 𝗡𝗮𝗺𝗲: ${prefix}${cfg.name}
-┋➥ 🗂️ 𝗖𝗮𝘁𝗲𝗴𝗼𝗿𝘆: ${categoryEmoji(cfg.category || "other")} ${cfg.category || "❌ 𝗨𝗻𝗰𝗮𝘁𝗲𝗴𝗼𝗿𝗶𝘇𝗲𝗱"}
-┋➥ 📄 𝗗𝗲𝘀𝗰𝗿𝗶𝗽𝘁𝗶𝗼𝗻: ${desc}
-┋➥ ⚙️ 𝗩𝗲𝗿𝘀𝗶𝗼𝗻: ${cfg.version || "1.0"}
-┋➥ ⏳ 𝗖𝗼𝗼𝗹𝗱𝗼𝘄𝗻: ${cfg.countDown || 1}s
-┋➥ 🔒 𝗥𝗼𝗹𝗲: ${cfg.role === 0 ? "👤 𝗔𝗹𝗹" : cfg.role === 1 ? "👑 𝗔𝗱𝗺𝗶𝗻" : "⚡ 𝗢𝘄𝗻𝗲𝗿"}
-┋➥ 👑 𝗔𝘂𝘁𝗵𝗼𝗿: ${cfg.author || "❌ 𝗨𝗻𝗸𝗻𝗼𝘄𝗻"}
-┋➥ 🔤 𝗔𝗹𝗶𝗮𝘀𝗲𝘀: ${aliasesList}
-┍━━━[ 📘 𝗨𝗦𝗔𝗚𝗘 ]━━━◊
-${usage.split('\n').map(line => `┋➥ ${line}`).join('\n')}
-┍━━━[ 💡 𝗡𝗢𝗧𝗘𝗦 ]━━━◊
-┋➥ <text> = Replaceable content
-┋➥ [a|b] = Choose option a or b
-┋➥ ( ) = Optional parameter
-┋➥ {pn} = Bot prefix
-┕━━━━━━━━━━━━━━━━━━━━━◊`;
-        
-      try {
-        await message.reply({
-          body: helpMessage,
-          attachment: await global.utils.getStreamFromURL("https://i.ibb.co/5X9T2dDN/image0.gif")
-        });
-      } catch (error) {
-        console.log("GIF attachment failed, sending text only:", error);
-        await message.reply(helpMessage);
-      }
-      return;
-    }
-      
-    const categories = {};
-    for (const [, c] of commands) {
-      if (c.config.role > role) continue;
-      const cat = c.config.category || "Uncategorized";
-      if (!categories[cat]) categories[cat] = [];
-      categories[cat].push(c.config.name);
-    }
-
-    let msg = `┍━━━[ 📚 RS• 𝗕𝗢𝗧 𝗠𝗘𝗡𝗨  ]━━━◊\n`;
-      
-    const sortedCategories = Object.keys(categories).sort();
-    
-    for (const cat of sortedCategories) {
-      const categoryName = fancyText(cat.toUpperCase());
-      const commandsList = categories[cat].sort();
-      
-      msg += `┍━━━[ ${categoryEmoji(cat)} ${categoryName} ]━━━◊\n`;
-        
-      for (let i = 0; i < commandsList.length; i += 2) {
-        const cmd1 = commandsList[i];
-        const cmd2 = commandsList[i + 1];
-        
-        const line = cmd2 ? 
-          `┋➥ ${cmd1.padEnd(15)} ${cmd2}` :
-          `┋➥ ${cmd1}`;
-        
-        msg += line + "\n";
-      }
-      
-      msg += "┕━━━━━━━━━━━━━━━━━━━━━━◊\n";
-    }
-
-    const totalCommands = Object.values(categories).flat().length;
-    msg += `┍━━━[ 📊 𝗦𝗧𝗔𝗧𝗦 ]━━━◊
-┋➥ 𝗧𝗼𝘁𝗮𝗹 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀: ${totalCommands}
-┋➥ 𝗧𝗼𝘁𝗮𝗹 𝗖𝗮𝘁𝗲𝗴𝗼𝗿𝗶𝗲𝘀: ${sortedCategories.length}
-┋➥ 𝗔𝗹𝗹 𝗰𝗼𝗺𝗺𝗮𝗻𝗱𝘀 𝗶𝗻 𝗼𝗻𝗲 𝗽𝗮𝗴𝗲
-┍━━━[ 🚀 𝗜𝗡𝗙𝗢 ]━━━◊
-┋➥ 𝗪𝗲𝗹𝗰𝗼𝗺𝗲 𝘁𝗼 RS• 𝗕𝗼𝘁!
-┋➥ 𝗣𝗿𝗲𝗳𝗶𝘅: [ ${prefix} ]
-┋➥ 𝗗𝗲𝘃𝗲𝗹𝗼𝗽𝗲𝗿: RS•RIFAT
-┋➥ 𝗨𝘀𝗲: ${prefix}𝗵𝗲𝗹𝗽 <𝗰𝗼𝗺𝗺𝗮𝗻𝗱>
-┕━━━━━━━━━━━━━━━━━━━━━━◊`;
-      
+  let commands = [];
+  for (let file of files) {
     try {
-      await message.reply({
-        body: msg,
-        attachment: await global.utils.getStreamFromURL("https://i.ibb.co/5X9T2dDN/image0.gif")
+      const raw = require(path.join(commandDir, file));
+      if (!raw) continue;
+
+      const cfg = raw.config || {};
+      if (!cfg.name) continue;
+
+      const type = typeof raw.onStart === "function"
+        ? "GoatBot"
+        : typeof raw.run === "function"
+          ? "Mirai"
+          : "Unknown";
+
+      commands.push({
+        name: cfg.name,
+        aliases: cfg.aliases || [],
+        category: cfg.category || cfg.commandCategory || "Other",
+        description: (
+          typeof cfg.description === "string"
+            ? cfg.description
+            : cfg.description?.en || cfg.description?.bn || "No description available."
+        ),
+        author: cfg.author || cfg.credits || "Unknown",
+        version: cfg.version || "N/A",
+        usages: (
+          typeof cfg.guide === "string"
+            ? cfg.guide
+            : cfg.guide?.en || cfg.usages || "No usage info"
+        ),
+        cooldowns: cfg.countDown || cfg.cooldowns || "N/A",
+        type,
       });
-    } catch (error) {
-      console.log("GIF attachment failed, sending text only:", error);
-      await message.reply(msg);
+    } catch {}
+  }
+
+  const commandsPerPage = Math.ceil(commands.length / 2);
+  const totalPages = 2;
+  page = Math.min(Math.max(page, 1), totalPages);
+  const start = (page - 1) * commandsPerPage;
+  const end = start + commandsPerPage;
+  const pageCommands = commands.slice(start, end);
+
+  const categories = {};
+  for (let cmd of pageCommands) {
+    if (!categories[cmd.category]) categories[cmd.category] = [];
+    categories[cmd.category].push({ name: cmd.name, type: cmd.type });
+  }
+
+  let msg = `╭──❏ 𝐀𝐮𝐭𝐨 𝐃𝐞𝐭𝐞𝐜𝐭 𝐇𝐞𝐥𝐩 - Page ${page} ❏──╮\n`;
+  msg += `│ ✧ Total Commands: ${commands.length}\n`;
+  msg += `│ ✧ Prefix: ${global.GoatBot.config.prefix}\n`;
+  msg += `╰─────────────────────⭓\n\n`;
+
+  for (let [cat, cmds] of Object.entries(categories)) {
+    msg += `╭─‣ 𝗖𝗮𝘁𝗲𝗴𝗼𝗿𝘆 : ${cat}\n`;
+    for (let i = 0; i < cmds.length; i += 2) {
+      const a = cmds[i];
+      const b = cmds[i + 1];
+      const tagA = a.type === "GoatBot" ? "🐐" : "✨";
+      const tagB = b ? (b.type === "GoatBot" ? "🐐" : "✨") : null;
+      const row = [`${tagA}「${a.name}」`];
+      if (b) row.push(`✘ ${tagB}「${b.name}」`);
+      msg += `├‣ ${row.join(" ")}\n`;
     }
+    msg += `╰────────────◊\n\n`;
+  }
+
+  msg += `🐐 GoatBot  ✨ Mirai\n`;
+  msg += `⭔ Type ${global.GoatBot.config.prefix}help [command] to see details\n`;
+  msg += `⭔ Reply with a page number (1-${totalPages}) to switch pages\n`;
+  msg += `╭─[⋆˚🦋𝐌𝐚𝐫𝐢𝐚 × 𝐫𝐗🎀⋆˚]\n`;
+  msg += `╰‣ 𝐀𝐝𝐦𝐢𝐧 : 𝐫𝐗 𝐀𝐛𝐝𝐮𝐥𝐥𝐚𝐡\n`;
+  msg += `╰‣ 𝐑𝐢𝐩𝐨𝐫𝐭 : !callad (yourmsg)\n`;
+
+  let attachment = null;
+  try {
+    const cache = path.join(__dirname, "noprefix");
+    if (fs.existsSync(cache)) {
+      const names = ["mari1"];
+      const exts = [".gif", ".mp4", ".webp", ".png", ".jpg"];
+      let found = [];
+      fs.readdirSync(cache).forEach(file => {
+        const lower = file.toLowerCase();
+        if (names.some(n => lower.startsWith(n)) && exts.includes(path.extname(lower)))
+          found.push(path.join(cache, file));
+      });
+      if (found.length > 0)
+        attachment = fs.createReadStream(found[Math.floor(Math.random() * found.length)]);
+    }
+  } catch {
+    attachment = null;
+  }
+
+  return { msg, attachment, page, totalPages };
+}
+
+module.exports.onStart = async function ({ api, event, args }) {
+  try {
+    const commandDir = __dirname;
+    const files = fs.readdirSync(commandDir).filter(f => f.endsWith(".js"));
+    let commands = [];
+    for (let file of files) {
+      try {
+        const raw = require(path.join(commandDir, file));
+        if (!raw) continue;
+        const cfg = raw.config || {};
+        if (!cfg.name) continue;
+        commands.push(cfg.name);
+      } catch {}
+    }
+
+    // ---------- Command detail ----------
+    if (args[0] && isNaN(args[0])) {
+      const find = args[0].toLowerCase();
+      const commandDir2 = __dirname;
+      const files2 = fs.readdirSync(commandDir2).filter(f => f.endsWith(".js"));
+      let full = [];
+      for (let file of files2) {
+        try {
+          const raw = require(path.join(commandDir2, file));
+          if (!raw) continue;
+          const cfg = raw.config || {};
+          if (!cfg.name) continue;
+          const type = typeof raw.onStart === "function" ? "GoatBot" : typeof raw.run === "function" ? "Mirai" : "Unknown";
+          full.push({
+            name: cfg.name,
+            aliases: cfg.aliases || [],
+            category: cfg.category || cfg.commandCategory || "Other",
+            description: typeof cfg.description === "string" ? cfg.description : cfg.description?.en || cfg.description?.bn || "No description available.",
+            author: cfg.author || cfg.credits || "Unknown",
+            version: cfg.version || "N/A",
+            usages: typeof cfg.guide === "string" ? cfg.guide : cfg.guide?.en || cfg.usages || "No usage info",
+            cooldowns: cfg.countDown || cfg.cooldowns || "N/A",
+            type,
+          });
+        } catch {}
+      }
+      const cmd = full.find(c => c.name.toLowerCase() === find || (c.aliases && c.aliases.map(a => a.toLowerCase()).includes(find)));
+      if (!cmd)
+        return api.sendMessage(`❌ Command "${find}" not found.`, event.threadID, event.messageID);
+
+      let msg = `╭──❏ 𝐂𝐌𝐃 𝐈𝐍𝐅𝐎 ❏──╮\n`;
+      msg += `│ ✧ Name: ${cmd.name}\n`;
+      if (cmd.aliases.length > 0) msg += `│ ✧ Aliases: ${cmd.aliases.join(", ")}\n`;
+      msg += `│ ✧ Type: ${cmd.type}\n`;
+      msg += `│ ✧ Category: ${cmd.category}\n`;
+      msg += `│ ✧ Version: ${cmd.version}\n`;
+      msg += `│ ✧ Author: ${cmd.author}\n`;
+      msg += `│ ✧ Cooldowns: ${cmd.cooldowns}s\n`;
+      msg += `╰─────────────────────⭓\n`;
+      msg += `📘 Description: ${cmd.description}\n`;
+      msg += `📗 Usage: ${global.GoatBot.config.prefix}${cmd.name} ${cmd.usages}`;
+
+      return api.sendMessage(msg, event.threadID, (err, info) => {
+        if (!err) setTimeout(() => api.unsendMessage(info.messageID), UNSEND_DELAY);
+      }, event.messageID);
+    }
+
+    // ---------- Paged view ----------
+    const page = parseInt(args[0]) || 1;
+    const { msg, attachment } = await buildHelpPage({ api, page });
+    const payload = attachment ? { body: msg, attachment } : { body: msg };
+
+    api.sendMessage(payload, event.threadID, (err, info) => {
+      if (err) return;
+      setTimeout(() => { try { api.unsendMessage(info.messageID); } catch {} }, UNSEND_DELAY);
+
+      // register reply-to-navigate
+      global.GoatBot.onReply.push({
+        commandName: this.config.name,
+        messageID: info.messageID,
+        author: event.senderID,
+      });
+    }, event.messageID);
+
+  } catch (err) {
+    api.sendMessage("❌ Error: " + err.message, event.threadID, event.messageID);
+  }
+};
+
+module.exports.onReply = async function ({ api, event, Reply }) {
+  try {
+    if (event.senderID !== Reply.author) return;
+
+    const page = parseInt(event.body?.trim());
+    if (isNaN(page)) return;
+
+    const { msg, attachment } = await buildHelpPage({ api, page });
+    const payload = attachment ? { body: msg, attachment } : { body: msg };
+
+    api.sendMessage(payload, event.threadID, (err, info) => {
+      if (err) return;
+      setTimeout(() => { try { api.unsendMessage(info.messageID); } catch {} }, UNSEND_DELAY);
+
+      // remove old reply hook, register the new page's message for further navigation
+      global.GoatBot.onReply = global.GoatBot.onReply.filter(r => r.messageID !== Reply.messageID);
+      global.GoatBot.onReply.push({
+        commandName: this.config.name,
+        messageID: info.messageID,
+        author: event.senderID,
+      });
+    }, event.messageID);
+  } catch (err) {
+    api.sendMessage("❌ Error: " + err.message, event.threadID, event.messageID);
   }
 };
