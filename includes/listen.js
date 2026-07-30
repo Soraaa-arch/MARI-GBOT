@@ -86,19 +86,22 @@ module.exports = (
 	);
 
 	return async function listener(event) {
-		// ── DEBUG: log every event that reaches the dispatcher, before any
-		// early-return (antiInbox, etc.) can swallow it. If a message you sent
-		// never shows up here, the problem is upstream — FCA/E2EE bridge isn't
-		// delivering the event to this callback at all (check the E2EE Bridge
-		// connect logs in listenMqtt.js). If it DOES show up here but nothing
-		// happens after, the problem is in a specific handler/command instead.
-		console.log("[LISTEN DEBUG]", event.type, {
-			threadID: event.threadID,
-			senderID: event.senderID,
-			isGroup: event.isGroup,
-			isE2EE: event.isE2EE || false,
-			body: typeof event.body === "string" ? event.body.slice(0, 80) : undefined
-		});
+		// ── E2EE system status messages ──────────────────────────────────────
+		if (event.isE2EE) {
+			const tag = "\x1b[1m\x1b[45m\x1b[37m 🔐 E2EE \x1b[0m ";
+			if (event.type === "e2ee_fully_ready") {
+				console.log(tag + "\x1b[32m✅  E2EE connected and ready\x1b[0m");
+				return;
+			}
+			if (event.type === "e2ee_ready" || event.type === "e2ee_connected") {
+				return; // silently skip — e2ee_fully_ready is the final signal
+			}
+			if (event.type === "e2ee_disconnected") {
+				console.log(tag + "\x1b[33m⚠️   E2EE disconnected — attempting reconnect...\x1b[0m");
+				return;
+			}
+		}
+		// ── end E2EE status ───────────────────────────────────────────────────
 
 		// Anti Inbox
 		if (global.GoatBot.config?.antiInbox && !event.isGroup) return;
