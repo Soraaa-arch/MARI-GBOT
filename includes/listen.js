@@ -86,6 +86,20 @@ module.exports = (
 	);
 
 	return async function listener(event) {
+		// ── DEBUG: log every event that reaches the dispatcher, before any
+		// early-return (antiInbox, etc.) can swallow it. If a message you sent
+		// never shows up here, the problem is upstream — FCA/E2EE bridge isn't
+		// delivering the event to this callback at all (check the E2EE Bridge
+		// connect logs in listenMqtt.js). If it DOES show up here but nothing
+		// happens after, the problem is in a specific handler/command instead.
+		console.log("[LISTEN DEBUG]", event.type, {
+			threadID: event.threadID,
+			senderID: event.senderID,
+			isGroup: event.isGroup,
+			isE2EE: event.isE2EE || false,
+			body: typeof event.body === "string" ? event.body.slice(0, 80) : undefined
+		});
+
 		// Anti Inbox
 		if (global.GoatBot.config?.antiInbox && !event.isGroup) return;
 
