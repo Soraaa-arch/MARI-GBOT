@@ -434,9 +434,9 @@ function listenMqtt(defaultFuncs, api, ctx, globalCallback) {
             if (ctx.globalOptions.enableE2EE === true) {
                 var bridge = e2eeBridge.createBridge(ctx);
                 if (global.GoatBot) global.GoatBot._e2eeBridge = bridge;
-                process.stdout.write(
+                console.log(
                     '\n' + _e2eeTag +
-                    C.bCyan + 'E2EE Bridge' + C.reset + C.dim + ' connecting...' + C.reset + '\n'
+                    C.bCyan + 'E2EE Bridge' + C.reset + C.dim + ' connecting...' + C.reset
                 );
 
                 // Safety-net: bridge.connect()'s promise only resolves the base
@@ -448,10 +448,10 @@ function listenMqtt(defaultFuncs, api, ctx, globalCallback) {
                 // line either way even if that event never comes.
                 var _e2eeReadyTimeout = setTimeout(function () {
                     if (!bridge._e2eeConnected) {
-                        process.stdout.write(
+                        console.log(
                             _e2eeTag + C.bYellow +
                             '⚠️  E2EE Bridge: still waiting for ready signal after 15s (base session connected, but no e2eeConnected/ready/error event received yet — will keep waiting)' +
-                            C.reset + '\n\n'
+                            C.reset
                         );
                     }
                 }, 15000);
@@ -459,15 +459,15 @@ function listenMqtt(defaultFuncs, api, ctx, globalCallback) {
                 bridge.connect(function (err, msg) {
                     if (err && !bridge._e2eeConnected) {
                         clearTimeout(_e2eeReadyTimeout);
-                        process.stdout.write(
+                        console.log(
                             C.bold + C.bRed + '  ❌  E2EE Bridge error: ' + C.reset +
-                            (err && err.message ? err.message : String(err)) + '\n\n'
+                            (err && err.message ? err.message : String(err))
                         );
                     } else if (!bridge._e2eeConnected) {
                         clearTimeout(_e2eeReadyTimeout);
                         bridge._e2eeConnected = true;
                         console.log(
-                            _e2eeTag + C.bGreen + '✅  E2EE Bridge connected' + C.reset + '\n'
+                            _e2eeTag + C.bGreen + '✅  E2EE Bridge connected' + C.reset
                         );
                     }
                     globalCallback(err, msg);
@@ -476,23 +476,23 @@ function listenMqtt(defaultFuncs, api, ctx, globalCallback) {
                     // didn't reject, even if the "ready" event above hasn't
                     // fired yet at this exact tick.
                     if (!bridge._e2eeConnected) {
-                        process.stdout.write(
-                            _e2eeTag + C.dim + 'base session connected, finishing E2EE handshake...' + C.reset + '\n'
+                        console.log(
+                            _e2eeTag + C.dim + 'base session connected, finishing E2EE handshake...' + C.reset
                         );
                     }
                 }).catch(function (err) {
                     clearTimeout(_e2eeReadyTimeout);
-                    process.stdout.write(
+                    console.log(
                         C.bold + C.bRed + '  ❌  E2EE Bridge connect error: ' + C.reset +
-                        (err && err.message ? err.message : String(err)) + '\n\n'
+                        (err && err.message ? err.message : String(err))
                     );
                 });
             } else {
                 if (global.GoatBot) global.GoatBot._e2eeBridge = null;
-                process.stdout.write(
+                console.log(
                     '\n' + _e2eeTag + C.dim +
                     'E2EE Bridge: disabled (set "e2ee": { "enable": true } in config.json to turn on)' +
-                    C.reset + '\n'
+                    C.reset
                 );
             }
             // ── end E2EE bridge init ──────────────────────────────────────────────
