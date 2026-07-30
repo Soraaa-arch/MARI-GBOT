@@ -35,6 +35,9 @@ const log = require("../../utils/logger/log.js");
 
 // Never touch these when copying updated files over the project — they're
 // either user secrets/config or runtime data, not part of the bot's code.
+// This is only the fallback used when config.json > gitUpdate.protectedPaths
+// is missing (e.g. an old config.json from before this list was exposed).
+// Normally the list the user actually sees/edits is in config.json.
 const DEFAULT_PROTECTED_PATHS = [
 	"config.json",
 	"config.dev.json",
@@ -56,6 +59,11 @@ const DEFAULT_PROTECTED_PATHS = [
 	"database.sqlite",
 	"includes/data"
 ];
+
+// Path that gets skipped when config.json > gitUpdate.cmdUpdate is set to
+// false — i.e. the user's local commands (modules/cmds) are left alone and
+// only the rest of the bot's code (core, includes, etc.) gets updated.
+const CMDS_PATH = "modules/cmds";
 
 const STAGED_DIR_NAME = ".autoupdate_staged";
 const STAGED_TMP_DIR_NAME = ".autoupdate_staged_tmp";
@@ -151,7 +159,22 @@ function copyRecursiveSkipProtected(srcDir, destRootDir, protectedPaths, relBase
 }
 
 function getProtectedPaths(gitUpdate) {
-	return [...DEFAULT_PROTECTED_PATHS, ...(gitUpdate && Array.isArray(gitUpdate.protect) ? gitUpdate.protect : [])];
+	gitUpdate = gitUpdate || {};
+
+	// Base list: use the one exposed in config.json (gitUpdate.protectedPaths)
+	// if present so the user can see/edit exactly what's skipped, otherwise
+	// fall back to the built-in defaults (old config.json without this field).
+	const basePaths = Array.isArray(gitUpdate.protectedPaths) ? gitUpdate.protectedPaths : DEFAULT_PROTECTED_PATHS;
+
+	const paths = [...basePaths, ...(Array.isArray(gitUpdate.protect) ? gitUpdate.protect : [])];
+
+	// cmdUpdate: false -> also skip modules/cmds so the update never touches
+	// the user's local commands, only the rest of the bot's code.
+	if (gitUpdate.cmdUpdate === false && !paths.includes(CMDS_PATH)) {
+		paths.push(CMDS_PATH);
+	}
+
+	return paths;
 }
 
 function loadConfig(rootDir) {

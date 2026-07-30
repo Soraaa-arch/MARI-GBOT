@@ -1,11 +1,33 @@
 {
   "gitUpdate": {
     "autoUpdate": true,
+    "cmdUpdate": true,
     "url": "https://github.com/abdullahrx07/MARI-GBOT.git",
     "branch": "main",
     "checkIntervalMinutes": 60,
     "protect": [],
-    "notes": "autoUpdate: true -> after boot, bot silently checks the public GitHub repo at url every checkIntervalMinutes and silently downloads a newer version in the background (never blocks boot/login). Once downloaded it DMs every adminBot ID: react with checkmark on that message, or send the update command, to apply it (applies + restarts). false -> disabled. branch: leave empty to auto-detect the repo default branch. checkIntervalMinutes: how often (minutes) to check in the background, minimum 5. protect: extra files/folders (relative to project root) to never overwrite besides config.json, configCommands.json, account.txt, node_modules, .git."
+    "protectedPaths": [
+      "config.json",
+      "config.dev.json",
+      "configCommands.json",
+      "configCommands.dev.json",
+      "account.txt",
+      "account.dev.txt",
+      "appstate.txt",
+      "appstate.json",
+      "appstate.dev.txt",
+      "appstate.dev.json",
+      "node_modules",
+      ".git",
+      "package-lock.json",
+      ".autoupdate_tmp",
+      ".autoupdate_staged",
+      ".autoupdate_staged_tmp",
+      ".update-pending.json",
+      "database.sqlite",
+      "includes/data"
+    ],
+    "notes": "autoUpdate: true -> after boot, bot silently checks the public GitHub repo at url every checkIntervalMinutes and silently downloads a newer version in the background (never blocks boot/login). Once downloaded it DMs every adminBot ID: react with checkmark on that message, or send the update command, to apply it (applies + restarts). false -> disabled. cmdUpdate: true -> updates also overwrite modules/cmds (your commands); set to false to always skip modules/cmds during an update, so your local/custom commands are never touched, only the core bot code updates. branch: leave empty to auto-detect the repo default branch. checkIntervalMinutes: how often (minutes) to check in the background, minimum 5. protectedPaths: the full list of files/folders (relative to project root) that are NEVER overwritten by an update - this is shown here so you can see exactly what's excluded; edit with care, removing an entry means that file/folder CAN be overwritten by an update. protect: extra files/folders you want to add to that exclusion list, without having to touch protectedPaths."
   },
   "antiInbox": false,
   "language": "en",
