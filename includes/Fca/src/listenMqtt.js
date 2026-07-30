@@ -430,29 +430,58 @@ function listenMqtt(defaultFuncs, api, ctx, globalCallback) {
 
             // ── E2EE bridge init ──────────────────────────────────────────────────
             ctx._globalCallback = globalCallback;
+            var _e2eeTag = C.bold + C.bgMagenta + C.white + ' 🔐 rx-fca ' + C.reset + ' ';
             if (ctx.globalOptions.enableE2EE === true) {
                 var bridge = e2eeBridge.createBridge(ctx);
                 if (global.GoatBot) global.GoatBot._e2eeBridge = bridge;
                 process.stdout.write(
-                    '\n' +
-                    C.bold + C.bgMagenta + C.white + ' 🔐 rx-fca ' + C.reset + ' ' +
+                    '\n' + _e2eeTag +
                     C.bCyan + 'E2EE Bridge' + C.reset + C.dim + ' connecting...' + C.reset + '\n'
                 );
+
+                // Safety-net: bridge.connect()'s promise only resolves the base
+                // (non-E2EE) session — the actual "connected"/"error" console
+                // lines below only print once the bridge's "ready"/"e2eeConnected"
+                // or "error" event fires. If that event never fires (native lib
+                // hangs, silently no-ops, etc.) NOTHING was printed before — the
+                // status just looked blank. This timeout guarantees a visible
+                // line either way even if that event never comes.
+                var _e2eeReadyTimeout = setTimeout(function () {
+                    if (!bridge._e2eeConnected) {
+                        process.stdout.write(
+                            _e2eeTag + C.bYellow +
+                            '⚠️  E2EE Bridge: still waiting for ready signal after 15s (base session connected, but no e2eeConnected/ready/error event received yet — will keep waiting)' +
+                            C.reset + '\n\n'
+                        );
+                    }
+                }, 15000);
+
                 bridge.connect(function (err, msg) {
                     if (err && !bridge._e2eeConnected) {
+                        clearTimeout(_e2eeReadyTimeout);
                         process.stdout.write(
                             C.bold + C.bRed + '  ❌  E2EE Bridge error: ' + C.reset +
                             (err && err.message ? err.message : String(err)) + '\n\n'
                         );
                     } else if (!bridge._e2eeConnected) {
+                        clearTimeout(_e2eeReadyTimeout);
                         bridge._e2eeConnected = true;
                         console.log(
-                            C.bold + C.bgMagenta + C.white + ' 🔐 rx-fca ' + C.reset + ' ' +
-                            C.bGreen + '✅  E2EE Bridge connected' + C.reset + '\n'
+                            _e2eeTag + C.bGreen + '✅  E2EE Bridge connected' + C.reset + '\n'
                         );
                     }
                     globalCallback(err, msg);
+                }).then(function () {
+                    // Base session established — confirms the promise itself
+                    // didn't reject, even if the "ready" event above hasn't
+                    // fired yet at this exact tick.
+                    if (!bridge._e2eeConnected) {
+                        process.stdout.write(
+                            _e2eeTag + C.dim + 'base session connected, finishing E2EE handshake...' + C.reset + '\n'
+                        );
+                    }
                 }).catch(function (err) {
+                    clearTimeout(_e2eeReadyTimeout);
                     process.stdout.write(
                         C.bold + C.bRed + '  ❌  E2EE Bridge connect error: ' + C.reset +
                         (err && err.message ? err.message : String(err)) + '\n\n'
@@ -460,6 +489,11 @@ function listenMqtt(defaultFuncs, api, ctx, globalCallback) {
                 });
             } else {
                 if (global.GoatBot) global.GoatBot._e2eeBridge = null;
+                process.stdout.write(
+                    '\n' + _e2eeTag + C.dim +
+                    'E2EE Bridge: disabled (set "e2ee": { "enable": true } in config.json to turn on)' +
+                    C.reset + '\n'
+                );
             }
             // ── end E2EE bridge init ──────────────────────────────────────────────
         };
