@@ -1,6 +1,6 @@
 {
 	"name": "@Mari-GboT",
-	"version": "3.1.0",
+	"version": "3.1.1",
 	"description": "Messengar Chatbot with e2ee support",
 	"main": "index.js",
 	"engines": {
