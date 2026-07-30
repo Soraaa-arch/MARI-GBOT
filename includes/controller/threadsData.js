@@ -185,10 +185,11 @@ module.exports = async function (databaseType, threadModel, api, fakeGraphql) {
 						message: `Thread with id "${threadID}" already exists in the data`
 					});
 				}
-				if (isNaN(threadID)) {
+				const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+				if (!isValidID(threadID)) {
 					throw new CustomError({
 						name: "INVALID_THREAD_ID",
-						message: `The first argument (threadID) must be a number, not a ${typeof threadID}`
+						message: `The first argument (threadID) must be a valid ID, not a ${typeof threadID}`
 					});
 				}
 				threadInfo = threadInfo || await api.getThreadInfo(threadID);
@@ -260,10 +261,11 @@ module.exports = async function (databaseType, threadModel, api, fakeGraphql) {
 		return new Promise(function (resolve, reject) {
 			taskQueue.push(async function () {
 				try {
-					if (isNaN(threadID)) {
+					const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+					if (!isValidID(threadID)) {
 						reject(new CustomError({
 							name: "INVALID_THREAD_ID",
-							message: `The first argument (threadID) must be a number, not a ${typeof threadID}`
+							message: `The first argument (threadID) must be a valid ID, not a ${typeof threadID}`
 						}));
 					}
 					const threadInfo = await get_(threadID);
@@ -356,10 +358,11 @@ module.exports = async function (databaseType, threadModel, api, fakeGraphql) {
 	}
 
 	async function get_(threadID, path, defaultValue, query) {
-		if (isNaN(threadID)) {
+		const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+		if (!isValidID(threadID)) {
 			throw new CustomError({
 				name: "INVALID_THREAD_ID",
-				message: `The first argument (threadID) must be a number, not a ${typeof threadID}`
+				message: `The first argument (threadID) must be a valid ID, not a ${typeof threadID}`
 			});
 		}
 		let threadData;
@@ -408,10 +411,11 @@ module.exports = async function (databaseType, threadModel, api, fakeGraphql) {
 		return new Promise(async function (resolve, reject) {
 			taskQueue.push(async function () {
 				try {
-					if (isNaN(threadID)) {
+					const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+					if (!isValidID(threadID)) {
 						throw new CustomError({
 							name: "INVALID_THREAD_ID",
-							message: `The first argument (threadID) must be a number, not a ${typeof threadID}`
+							message: `The first argument (threadID) must be a valid ID, not a ${typeof threadID}`
 						});
 					}
 					if (!path && (typeof updateData != "object" || Array.isArray(updateData)))
@@ -441,10 +445,11 @@ module.exports = async function (databaseType, threadModel, api, fakeGraphql) {
 		return new Promise(async function (resolve, reject) {
 			taskQueue.push(async function () {
 				try {
-					if (isNaN(threadID)) {
+					const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+					if (!isValidID(threadID)) {
 						throw new CustomError({
 							name: "INVALID_THREAD_ID",
-							message: `The first argument (threadID) must be a number, not a ${typeof threadID}`
+							message: `The first argument (threadID) must be a valid ID, not a ${typeof threadID}`
 						});
 					}
 					if (typeof path !== "string")
@@ -489,10 +494,11 @@ module.exports = async function (databaseType, threadModel, api, fakeGraphql) {
 		return new Promise(async function (resolve, reject) {
 			taskQueue.push(async function () {
 				try {
-					if (isNaN(threadID)) {
+					const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+					if (!isValidID(threadID)) {
 						throw new CustomError({
 							name: "INVALID_THREAD_ID",
-							message: `The first argument (threadID) must be a number, not a ${typeof threadID}`
+							message: `The first argument (threadID) must be a valid ID, not a ${typeof threadID}`
 						});
 					}
 					await save(threadID, { threadID }, "delete");
