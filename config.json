@@ -1,7 +1,7 @@
 {
   "gitUpdate": {
     "autoUpdate": true,
-    "cmdUpdate": true,
+    "cmdUpdate": false,
     "url": "https://github.com/abdullahrx07/MARI-GBOT.git",
     "branch": "main",
     "checkIntervalMinutes": 60,
