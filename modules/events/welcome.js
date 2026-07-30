@@ -10,15 +10,15 @@ Canvas.registerFont(path.join(__dirname, "cache", "kalpurush.ttf"), {
 module.exports = {
   config: {
     name: "joinnoti",
-    version: "4.3.1",
-    author: "rX", //don't change this credite for more update (github.com/rxabdullah007)
+    version: "4.3.0",
+    author: "rX Abdullah", //don't change this credite for more update (github.com/rxabdullah007)
     category: "events"
   },
 
   langs: {
     en: {
       botAdded: "𝐓𝐡𝐚𝐧𝐤𝐬 𝐟𝐨𝐫 𝐚𝐝𝐝𝐢𝐧𝐠 𝐦𝐞 ❤️\n𝐓𝐲𝐩𝐞 %1𝐡𝐞𝐥𝐩 𝐭𝐨 𝐬𝐞𝐞 𝐦𝐲 𝐜𝐨𝐦𝐦𝐚𝐧𝐝𝐬!",
-      welcomeCaption: "🌸 Welcome @{userName} to {groupName}!",
+      welcomeCaption: "🌸 Welcome @%1 to %2!",
       genError: "❌ Error while generating welcome image!"
     }
   },
@@ -207,7 +207,7 @@ module.exports = {
 
       message.send(
         {
-          body: getLang("welcomeCaption", { userName, groupName }),
+          body: getLang("welcomeCaption", userName, groupName),
           attachment: fs.createReadStream(out),
           mentions: [{ tag: `@${userName}`, id: userID }]
         },
