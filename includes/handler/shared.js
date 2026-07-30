@@ -164,9 +164,11 @@ async function buildContext({ api, threadModel, userModel, dashBoardModel, globa
     let threadData = global.db.allThreadData.find(t => t.threadID == threadID);
     let userData = global.db.allUserData.find(u => u.userID == senderID);
 
-    if (!userData && !isNaN(senderID)) userData = await usersData.create(senderID);
+    const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
 
-    if (!threadData && !isNaN(threadID)) {
+    if (!userData && isValidID(senderID)) userData = await usersData.create(senderID);
+
+    if (!threadData && isValidID(threadID)) {
         const lastFailedAt = global.temp.createThreadDataError.get(threadID);
         if (lastFailedAt && (Date.now() - lastFailedAt) < 60 * 1000) return null;
         try {

@@ -178,10 +178,11 @@ module.exports = async function (databaseType, userModel, api, fakeGraphql) {
                                 }
 
                                 async function getName(userID, checkData = true) {
-                                                                if (isNaN(userID)) {
+                                                                const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+                                                                if (!isValidID(userID)) {
                                                                                                 throw new CustomError({
                                                                                                                                 name: "INVALID_USER_ID",
-                                                                                                                                message: `The first argument (userID) must be a number, not ${typeof userID}`
+                                                                                                                                message: `The first argument (userID) must be a valid ID, not ${typeof userID}`
                                                                                                 });
                                                                 }
 
@@ -198,10 +199,11 @@ module.exports = async function (databaseType, userModel, api, fakeGraphql) {
                                 }
 
                                 async function getAvatarUrl(userID) {
-                                                                if (isNaN(userID)) {
+                                                                const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+                                                                if (!isValidID(userID)) {
                                                                                                 throw new CustomError({
                                                                                                                                 name: "INVALID_USER_ID",
-                                                                                                                                message: `The first argument (userID) must be a number, not ${typeof userID}`
+                                                                                                                                message: `The first argument (userID) must be a valid ID, not ${typeof userID}`
                                                                                                 });
                                                                 }
                                                                 const FB_ACCESS_TOKEN = "6628568379%7Cc1e620fa708a1d5696fb991c1bde5662";
@@ -240,10 +242,11 @@ module.exports = async function (databaseType, userModel, api, fakeGraphql) {
                                                                                                                                                                                                 message: `User with id "${userID}" already exists in the data`
                                                                                                                                                                 });
                                                                                                                                 }
-                                                                                                                                if (isNaN(userID)) {
+                                                                                                                                const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+                                                                                                                                if (!isValidID(userID)) {
                                                                                                                                                                 throw new CustomError({
                                                                                                                                                                                                 name: "INVALID_USER_ID",
-                                                                                                                                                                                                message: `The first argument (userID) must be a number, not ${typeof userID}`
+                                                                                                                                                                                                message: `The first argument (userID) must be a valid ID, not ${typeof userID}`
                                                                                                                                                                 });
                                                                                                                                 }
                                                                                                                                 userInfo = userInfo || (await api.getUserInfo(userID))[userID];
@@ -290,10 +293,11 @@ module.exports = async function (databaseType, userModel, api, fakeGraphql) {
                                                                 return new Promise(async function (resolve, reject) {
                                                                                                 taskQueue.push(async function () {
                                                                                                                                 try {
-                                                                                                                                                                if (isNaN(userID)) {
+                                                                                                                                                                const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+                                                                                                                                                                if (!isValidID(userID)) {
                                                                                                                                                                                                 throw new CustomError({
                                                                                                                                                                                                                                 name: "INVALID_USER_ID",
-                                                                                                                                                                                                                                message: `The first argument (userID) must be a number, not ${typeof userID}`
+                                                                                                                                                                                                                                message: `The first argument (userID) must be a valid ID, not ${typeof userID}`
                                                                                                                                                                                                 });
                                                                                                                                                                 }
                                                                                                                                                                 const infoUser = await get_(userID);
@@ -356,10 +360,11 @@ module.exports = async function (databaseType, userModel, api, fakeGraphql) {
                                 }
 
                                 async function get_(userID, path, defaultValue, query) {
-                                                                if (isNaN(userID)) {
+                                                                const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+                                                                if (!isValidID(userID)) {
                                                                                                 throw new CustomError({
                                                                                                                                 name: "INVALID_USER_ID",
-                                                                                                                                message: `The first argument (userID) must be a number, not ${typeof userID}`
+                                                                                                                                message: `The first argument (userID) must be a valid ID, not ${typeof userID}`
                                                                                                 });
                                                                 }
                                                                 let userData;
@@ -409,10 +414,11 @@ module.exports = async function (databaseType, userModel, api, fakeGraphql) {
                                                                 return new Promise((resolve, reject) => {
                                                                                                 taskQueue.push(async function () {
                                                                                                                                 try {
-                                                                                                                                                                if (isNaN(userID)) {
+                                                                                                                                                                const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+                                                                                                                                                                if (!isValidID(userID)) {
                                                                                                                                                                                                 throw new CustomError({
                                                                                                                                                                                                                                 name: "INVALID_USER_ID",
-                                                                                                                                                                                                                                message: `The first argument (userID) must be a number, not ${typeof userID}`
+                                                                                                                                                                                                                                message: `The first argument (userID) must be a valid ID, not ${typeof userID}`
                                                                                                                                                                                                 });
                                                                                                                                                                 }
 
@@ -445,10 +451,11 @@ module.exports = async function (databaseType, userModel, api, fakeGraphql) {
                                                                 return new Promise(async function (resolve, reject) {
                                                                                                 taskQueue.push(async function () {
                                                                                                                                 try {
-                                                                                                                                                                if (isNaN(userID)) {
+                                                                                                                                                                const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+                                                                                                                                                                if (!isValidID(userID)) {
                                                                                                                                                                                                 throw new CustomError({
                                                                                                                                                                                                                                 name: "INVALID_USER_ID",
-                                                                                                                                                                                                                                message: `The first argument (userID) must be a number, not a ${typeof userID}`
+                                                                                                                                                                                                                                message: `The first argument (userID) must be a valid ID, not a ${typeof userID}`
                                                                                                                                                                                                 });
                                                                                                                                                                 }
                                                                                                                                                                 if (typeof path !== "string")
@@ -493,10 +500,11 @@ module.exports = async function (databaseType, userModel, api, fakeGraphql) {
                                                                 return new Promise((resolve, reject) => {
                                                                                                 taskQueue.push(async function () {
                                                                                                                                 try {
-                                                                                                                                                                if (isNaN(userID)) {
+                                                                                                                                                                const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+                                                                                                                                                                if (!isValidID(userID)) {
                                                                                                                                                                                                 throw new CustomError({
                                                                                                                                                                                                                                 name: "INVALID_USER_ID",
-                                                                                                                                                                                                                                message: `The first argument (userID) must be a number, not ${typeof userID}`
+                                                                                                                                                                                                                                message: `The first argument (userID) must be a valid ID, not ${typeof userID}`
                                                                                                                                                                                                 });
                                                                                                                                                                 }
                                                                                                                                                                 const money = await get_(userID, "money");
@@ -513,10 +521,11 @@ module.exports = async function (databaseType, userModel, api, fakeGraphql) {
                                                                 return new Promise((resolve, reject) => {
                                                                                                 taskQueue.push(async function () {
                                                                                                                                 try {
-                                                                                                                                                                if (isNaN(userID)) {
+                                                                                                                                                                const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+                                                                                                                                                                if (!isValidID(userID)) {
                                                                                                                                                                                                 throw new CustomError({
                                                                                                                                                                                                                                 name: "INVALID_USER_ID",
-                                                                                                                                                                                                                                message: `The first argument (userID) must be a number, not ${typeof userID}`
+                                                                                                                                                                                                                                message: `The first argument (userID) must be a valid ID, not ${typeof userID}`
                                                                                                                                                                                                 });
                                                                                                                                                                 }
                                                                                                                                                                 if (isNaN(money)) {
@@ -552,10 +561,11 @@ module.exports = async function (databaseType, userModel, api, fakeGraphql) {
                                                                 return new Promise((resolve, reject) => {
                                                                                                 taskQueue.push(async function () {
                                                                                                                                 try {
-                                                                                                                                                                if (isNaN(userID)) {
+                                                                                                                                                                const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+                                                                                                                                                                if (!isValidID(userID)) {
                                                                                                                                                                                                 throw new CustomError({
                                                                                                                                                                                                                                 name: "INVALID_USER_ID",
-                                                                                                                                                                                                                                message: `The first argument (userID) must be a number, not ${typeof userID}`
+                                                                                                                                                                                                                                message: `The first argument (userID) must be a valid ID, not ${typeof userID}`
                                                                                                                                                                                                 });
                                                                                                                                                                 }
                                                                                                                                                                 if (isNaN(money)) {
@@ -590,10 +600,11 @@ module.exports = async function (databaseType, userModel, api, fakeGraphql) {
                                                                 return new Promise((resolve, reject) => {
                                                                                                 taskQueue.push(async function () {
                                                                                                                                 try {
-                                                                                                                                                                if (isNaN(userID)) {
+                                                                                                                                                                const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+                                                                                                                                                                if (!isValidID(userID)) {
                                                                                                                                                                                                 throw new CustomError({
                                                                                                                                                                                                                                 name: "INVALID_USER_ID",
-                                                                                                                                                                                                                                message: `The first argument (userID) must be a number, not ${typeof userID}`
+                                                                                                                                                                                                                                message: `The first argument (userID) must be a valid ID, not ${typeof userID}`
                                                                                                                                                                                                 });
                                                                                                                                                                 }
                                                                                                                                                                 await save(userID, { userID }, "remove");
