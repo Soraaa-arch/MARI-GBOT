@@ -21,6 +21,11 @@
     "enable": false,
     "ignoreCommand": []
   },
+  "whiteListMode": {
+    "status": false,
+    "whiteListIds": [],
+    "ignoreCommand": []
+  },
   "adminBot": [
     "61572070323866",
     "61562826721109",
@@ -96,7 +101,8 @@
     "needRoleToUseCmdOnReply": false,
     "needRoleToUseCmdOnReaction": false,
     "developerOnly": false,
-    "vipOnly": false
+    "vipOnly": false,
+    "whiteListMode": false
   },
   "optionsFca": {
     "forceLogin": true,
