@@ -10,8 +10,8 @@ Canvas.registerFont(path.join(__dirname, "cache", "kalpurush.ttf"), {
 module.exports = {
   config: {
     name: "joinnoti",
-    version: "4.3.0",
-    author: "rX Abdullah", //don't change this credite for more update (github.com/rxabdullah007)
+    version: "4.3.1",
+    author: "rX", //don't change this credite for more update (github.com/rxabdullah007)
     category: "events"
   },
 
@@ -23,7 +23,7 @@ module.exports = {
     }
   },
 
-  onStart: async ({ api, event, message, Users, getLang }) => {
+  onStart: async ({ api, event, message, usersData, getLang }) => {
     // Only handle subscribe events (new members)
     if (event.logMessageType !== "log:subscribe") return;
 
@@ -54,7 +54,7 @@ module.exports = {
     const female = info.userInfo.filter(u => u.gender === "FEMALE").length;
 
     const inviterID = event.author;
-    const inviterName = await Users.getNameUser(inviterID);
+    const inviterName = await usersData.getName(inviterID);
 
     const avatarURL = `https://graph.facebook.com/${userID}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
     const inviterAvatarURL = `https://graph.facebook.com/${inviterID}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
