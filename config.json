@@ -3,8 +3,9 @@
     "autoUpdate": true,
     "url": "https://github.com/abdullahrx07/MARI-GBOT.git",
     "branch": "main",
+    "checkIntervalMinutes": 60,
     "protect": [],
-    "notes": "autoUpdate: true -> on every boot, bot checks package.json version on the public GitHub repo at 'url' and self-updates + restarts if a newer version is found. false -> disabled. branch: leave empty to auto-detect the repo's default branch. protect: extra files/folders (relative to project root) to never overwrite besides config.json, configCommands.json, account.txt, node_modules, .git."
+    "notes": "autoUpdate: true -> after boot, bot silently checks the public GitHub repo at url every checkIntervalMinutes and silently downloads a newer version in the background (never blocks boot/login). Once downloaded it DMs every adminBot ID: react with checkmark on that message, or send the update command, to apply it (applies + restarts). false -> disabled. branch: leave empty to auto-detect the repo default branch. checkIntervalMinutes: how often (minutes) to check in the background, minimum 5. protect: extra files/folders (relative to project root) to never overwrite besides config.json, configCommands.json, account.txt, node_modules, .git."
   },
   "antiInbox": false,
   "language": "en",
@@ -40,13 +41,13 @@
   ],
   "reactBy": {
     "delete": [
-      "🗑️",
-      "😠",
-      "😡",
-      "😾"
+      "\ud83d\uddd1\ufe0f",
+      "\ud83d\ude20",
+      "\ud83d\ude21",
+      "\ud83d\ude3e"
     ]
   },
-  "nickNameBot": "۵ཐི༏ཋྀ⏤͟͟͞͞Your ♡ᜊXan♡-ᥫ᭡",
+  "nickNameBot": "\u06f5\u0f50\u0f72\u0f0f\u0f4b\u0f80\u23e4\u035f\u035f\u035e\u035eYour \u2661\u170aXan\u2661-\u196b\u1b61",
   "prefix": "*",
   "database": {
     "type": "sqlite",

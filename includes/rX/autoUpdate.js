@@ -1,18 +1,30 @@
 /**
- * GIT AUTO UPDATE SYSTEM
- * -----------------------
+ * GIT AUTO UPDATE SYSTEM (staged / admin-confirmed model)
+ * ---------------------------------------------------------
  * Reads `gitUpdate` from config.json:
  *   "gitUpdate": {
- *       "autoUpdate": true,          // true = check + self update on every boot, false = skip
+ *       "autoUpdate": true,              // true = periodically check in the background, false = disabled
  *       "url": "https://github.com/owner/repo",
- *       "branch": "main",            // optional, auto-detected if omitted
- *       "protect": ["myCustomFolder"] // optional, extra files/folders to never overwrite
+ *       "branch": "main",                // optional, auto-detected if omitted
+ *       "checkIntervalMinutes": 60,      // optional, how often to check in the background
+ *       "protect": ["myCustomFolder"]    // optional, extra files/folders to never overwrite
  *   }
  *
- * Flow: fetch remote package.json -> compare version with local package.json
- * -> if remote is newer, download the repo zip, overwrite local files (except
- * protected/user-owned files), then exit(2) so the process manager (PM2 /
- * nodemon / a bash restart-loop) brings the bot back up on the new code.
+ * Why staged instead of "check + apply immediately on boot":
+ * On hosts like Render, the boot process must bind to a port quickly or the
+ * deploy is killed/timed out. Downloading + npm installing on every boot
+ * before the bot even logs in can blow that budget. So now:
+ *
+ *   1. The bot boots and starts listening immediately (no blocking update check).
+ *   2. In the background, on an interval, we silently check the remote repo's
+ *      package.json version and, if newer, silently download + extract it into
+ *      a staging folder (`.autoupdate_staged`) WITHOUT touching live files.
+ *   3. Once staged, the bot messages every admin's inbox: "new version
+ *      available". Admin reacts ✅ on that message (or runs the `update`
+ *      command) to actually apply the already-downloaded update.
+ *   4. Applying = copy staged files over the project (skipping protected
+ *      paths), npm install if deps changed, then exit(2) so the process
+ *      manager restarts the bot on the new code.
  */
 
 const fs = require("fs-extra");
@@ -38,9 +50,16 @@ const DEFAULT_PROTECTED_PATHS = [
 	".git",
 	"package-lock.json",
 	".autoupdate_tmp",
+	".autoupdate_staged",
+	".autoupdate_staged_tmp",
+	".update-pending.json",
 	"database.sqlite",
 	"includes/data"
 ];
+
+const STAGED_DIR_NAME = ".autoupdate_staged";
+const STAGED_TMP_DIR_NAME = ".autoupdate_staged_tmp";
+const PENDING_MARKER_NAME = ".update-pending.json";
 
 function getGitRemoteUrl(rootDir) {
 	try {
@@ -131,20 +150,292 @@ function copyRecursiveSkipProtected(srcDir, destRootDir, protectedPaths, relBase
 	}
 }
 
+function getProtectedPaths(gitUpdate) {
+	return [...DEFAULT_PROTECTED_PATHS, ...(gitUpdate && Array.isArray(gitUpdate.protect) ? gitUpdate.protect : [])];
+}
+
+function loadConfig(rootDir) {
+	return global.GoatBot?.config || require(path.join(rootDir, "config.json"));
+}
+
 /**
- * Checks config.json's `gitUpdate` block and self-updates the bot if a newer
- * version is found on the given public GitHub repo. Does nothing if
- * `gitUpdate.autoUpdate` is not `true` or `gitUpdate.url` is missing.
+ * Resolves { owner, repo, branch } from config.json's gitUpdate block
+ * (falling back to the local .git remote / default branch detection),
+ * with the same graceful fallbacks the original implementation had.
+ */
+async function resolveRepo(rootDir, gitUpdate) {
+	let gitUrl = gitUpdate.url || getGitRemoteUrl(rootDir);
+	if (!gitUrl) {
+		const err = new Error("Git auto update is enabled but no git repository URL could be found or auto-detected.");
+		err.noRepo = true;
+		throw err;
+	}
+
+	let owner, repo;
+	try {
+		const parsed = parseGitUrl(gitUrl);
+		owner = parsed.owner;
+		repo = parsed.repo;
+	} catch (parseErr) {
+		const fallbackUrl = gitUpdate.url ? getGitRemoteUrl(rootDir) : null;
+		if (fallbackUrl && fallbackUrl !== gitUpdate.url) {
+			log.warn("AUTO UPDATE", `Configured URL "${gitUpdate.url}" is invalid. Trying auto-detected remote: "${fallbackUrl}"...`);
+			const parsed = parseGitUrl(fallbackUrl);
+			owner = parsed.owner;
+			repo = parsed.repo;
+			gitUrl = fallbackUrl;
+		} else {
+			throw parseErr;
+		}
+	}
+
+	let branch = gitUpdate.branch || await getDefaultBranch(owner, repo);
+
+	async function tryFetchWithBranchFallback(curOwner, curRepo, curBranch) {
+		try {
+			return { pkg: await fetchRemotePackageJson(curOwner, curRepo, curBranch), activeBranch: curBranch };
+		} catch (err) {
+			if (!gitUpdate.branch && (curBranch === "main" || curBranch === "master") && err.response?.status === 404) {
+				const fallbackBranch = curBranch === "main" ? "master" : "main";
+				log.info("AUTO UPDATE", `Failed to fetch from branch "${curBranch}", trying fallback branch "${fallbackBranch}"...`);
+				const pkg = await fetchRemotePackageJson(curOwner, curRepo, fallbackBranch);
+				return { pkg, activeBranch: fallbackBranch };
+			}
+			throw err;
+		}
+	}
+
+	let remotePkg;
+	try {
+		const fetchResult = await tryFetchWithBranchFallback(owner, repo, branch);
+		remotePkg = fetchResult.pkg;
+		branch = fetchResult.activeBranch;
+	} catch (err) {
+		const fallbackUrl = gitUpdate.url ? getGitRemoteUrl(rootDir) : null;
+		if (fallbackUrl && fallbackUrl !== gitUpdate.url) {
+			log.warn("AUTO UPDATE", `Configured repo "${owner}/${repo}" fetch failed (${err.message}). Trying auto-detected remote: "${fallbackUrl}"...`);
+			const fallbackParsed = parseGitUrl(fallbackUrl);
+			const fallbackOwner = fallbackParsed.owner;
+			const fallbackRepo = fallbackParsed.repo;
+			const fallbackBranch = gitUpdate.branch || await getDefaultBranch(fallbackOwner, fallbackRepo);
+			const fetchResult = await tryFetchWithBranchFallback(fallbackOwner, fallbackRepo, fallbackBranch);
+			remotePkg = fetchResult.pkg;
+			branch = fetchResult.activeBranch;
+			owner = fallbackOwner;
+			repo = fallbackRepo;
+			gitUrl = fallbackUrl;
+		} else {
+			throw err;
+		}
+	}
+
+	return { owner, repo, branch, remotePkg };
+}
+
+/**
+ * Silent, read-only check: is a newer version available on the remote repo?
+ * Does NOT download anything. Safe to call as often as you like.
+ */
+async function checkForUpdate(rootDir = process.cwd()) {
+	const config = loadConfig(rootDir);
+	const gitUpdate = config.gitUpdate;
+	if (!gitUpdate) return { available: false, noRepo: true };
+
+	const localPkg = require(path.join(rootDir, "package.json"));
+	const { owner, repo, branch, remotePkg } = await resolveRepo(rootDir, gitUpdate);
+
+	if (!remotePkg.version) return { available: false, error: "Remote package.json has no version field." };
+
+	const available = compareVersion(remotePkg.version, localPkg.version) > 0;
+	return {
+		available,
+		owner, repo, branch,
+		localVersion: localPkg.version,
+		remoteVersion: remotePkg.version,
+		remotePkg
+	};
+}
+
+function readPendingMarker(rootDir) {
+	const markerPath = path.join(rootDir, PENDING_MARKER_NAME);
+	if (!fs.existsSync(markerPath)) return null;
+	try {
+		return JSON.parse(fs.readFileSync(markerPath, "utf-8"));
+	} catch {
+		return null;
+	}
+}
+
+function writePendingMarker(rootDir, data) {
+	fs.writeFileSync(path.join(rootDir, PENDING_MARKER_NAME), JSON.stringify(data, null, 2));
+}
+
+/**
+ * Returns the currently staged (downloaded-but-not-applied) update info, or
+ * null if nothing is staged / the staged folder is missing.
+ */
+function getPendingUpdate(rootDir = process.cwd()) {
+	const marker = readPendingMarker(rootDir);
+	if (!marker) return null;
+	const stagedDir = path.join(rootDir, STAGED_DIR_NAME);
+	if (!fs.existsSync(stagedDir)) return null;
+	return marker;
+}
+
+/**
+ * Marks the currently staged update as "admin has been notified" so the
+ * background checker doesn't re-send the same DM every interval.
+ */
+function markPendingNotified(rootDir = process.cwd()) {
+	const marker = readPendingMarker(rootDir);
+	if (!marker) return null;
+	marker.notified = true;
+	writePendingMarker(rootDir, marker);
+	return marker;
+}
+
+function clearPendingUpdate(rootDir = process.cwd()) {
+	try { fs.removeSync(path.join(rootDir, STAGED_DIR_NAME)); } catch {}
+	try { fs.removeSync(path.join(rootDir, PENDING_MARKER_NAME)); } catch {}
+}
+
+/**
+ * Downloads the given remote version into the staging folder
+ * (`.autoupdate_staged`) without touching any live project files, and
+ * writes the pending-update marker. Meant to be called from the background
+ * checker once `checkForUpdate()` reports `available: true`.
+ */
+async function stageUpdate(rootDir, { owner, repo, branch, localVersion, remoteVersion, remotePkg }) {
+	const tmpDir = path.join(rootDir, STAGED_TMP_DIR_NAME);
+	fs.emptyDirSync(tmpDir);
+
+	const extractedRoot = await downloadAndExtractZip(owner, repo, branch, tmpDir);
+
+	const stagedDir = path.join(rootDir, STAGED_DIR_NAME);
+	fs.removeSync(stagedDir);
+	fs.moveSync(extractedRoot, stagedDir);
+	fs.removeSync(tmpDir);
+
+	const marker = {
+		owner, repo, branch,
+		localVersion, remoteVersion,
+		remoteDependencies: remotePkg.dependencies || {},
+		stagedAt: Date.now(),
+		notified: false
+	};
+	writePendingMarker(rootDir, marker);
+
+	log.master("AUTO UPDATE", `New version v${remoteVersion} downloaded and staged silently (was v${localVersion}). Waiting for admin confirmation to apply.`);
+	return marker;
+}
+
+/**
+ * Checks the remote repo and, if a newer version exists and isn't already
+ * staged, silently downloads it into the staging folder. Never restarts or
+ * touches live files. Meant for the background interval.
  *
- * @param {string} rootDir - project root directory (defaults to process.cwd())
- * @returns {Promise<boolean>} true if an update was applied (process is about to exit), false otherwise
+ * @returns {Promise<{staged:boolean, alreadyStaged:boolean, marker:?object, checked:object}>}
+ */
+async function checkAndStageUpdate(rootDir = process.cwd()) {
+	const checked = await checkForUpdate(rootDir);
+	if (!checked.available) return { staged: false, alreadyStaged: false, marker: null, checked };
+
+	const existing = getPendingUpdate(rootDir);
+	if (existing && existing.remoteVersion === checked.remoteVersion) {
+		return { staged: false, alreadyStaged: true, marker: existing, checked };
+	}
+
+	const marker = await stageUpdate(rootDir, {
+		owner: checked.owner, repo: checked.repo, branch: checked.branch,
+		localVersion: checked.localVersion, remoteVersion: checked.remoteVersion,
+		remotePkg: checked.remotePkg
+	});
+	return { staged: true, alreadyStaged: false, marker, checked };
+}
+
+/**
+ * Applies a previously staged update: copies the staged files over the
+ * live project (skipping protected paths), npm installs if dependencies
+ * changed, clears the staged folder/marker, then exits(2) so the process
+ * manager restarts the bot on the new code.
+ */
+async function applyPendingUpdate(rootDir = process.cwd(), options = {}) {
+	const { notifyThreadID = null } = options;
+	const config = loadConfig(rootDir);
+	const gitUpdate = config.gitUpdate || {};
+
+	const marker = getPendingUpdate(rootDir);
+	if (!marker) return { applied: false, noPending: true };
+
+	const stagedDir = path.join(rootDir, STAGED_DIR_NAME);
+	const protectedPaths = getProtectedPaths(gitUpdate);
+
+	log.master("AUTO UPDATE", `Applying staged update: v${marker.localVersion} → v${marker.remoteVersion}...`);
+	copyRecursiveSkipProtected(stagedDir, rootDir, protectedPaths);
+
+	// Check if dependencies changed vs. what was staged, and npm install if so.
+	let depsChanged = false;
+	try {
+		const localPkg = require(path.join(rootDir, "package.json"));
+		const localDeps = localPkg.dependencies || {};
+		const remoteDeps = marker.remoteDependencies || {};
+		const remoteKeys = Object.keys(remoteDeps);
+		const localKeys = Object.keys(localDeps);
+		if (remoteKeys.length !== localKeys.length) {
+			depsChanged = true;
+		} else {
+			for (const key of remoteKeys) {
+				if (remoteDeps[key] !== localDeps[key]) { depsChanged = true; break; }
+			}
+		}
+	} catch {}
+
+	if (depsChanged) {
+		log.info("AUTO UPDATE", "Dependencies in package.json have changed. Running 'npm install' to update dependencies...");
+		try {
+			const { execSync } = require("child_process");
+			execSync("npm install --no-audit --no-fund", { cwd: rootDir, stdio: "inherit" });
+			log.success("AUTO UPDATE", "Dependencies updated successfully.");
+		} catch (npmErr) {
+			log.err("AUTO UPDATE", "Failed to automatically install updated dependencies. Please run 'npm install' manually.", npmErr);
+		}
+	}
+
+	const fromVersion = marker.localVersion;
+	const toVersion = marker.remoteVersion;
+	clearPendingUpdate(rootDir);
+
+	log.master("AUTO UPDATE", `Update applied: v${fromVersion} → v${toVersion}. Restarting bot to load new code...`);
+
+	if (notifyThreadID) {
+		try {
+			const markerDir = path.join(rootDir, "modules", "cmds", "tmp");
+			fs.ensureDirSync(markerDir);
+			fs.writeFileSync(path.join(markerDir, "update.txt"), `${notifyThreadID} ${Date.now()} ${fromVersion} ${toVersion}`);
+		} catch (markerErr) {
+			log.warn("AUTO UPDATE", `Failed to write update notification marker: ${markerErr.message}`);
+		}
+	}
+
+	// Exit code 2 signals a "please restart me" to process managers
+	// (PM2, nodemon, Render, or a simple bash restart-loop).
+	process.exit(2);
+	// eslint-disable-next-line no-unreachable
+	return { applied: true, fromVersion, toVersion };
+}
+
+/**
+ * All-in-one manual flow used by the `update` command when an admin runs
+ * it directly: if there's already a matching staged update, apply it
+ * immediately (no re-download). Otherwise check + download + apply in one
+ * shot. This one is expected to block/restart — it was explicitly requested.
  */
 async function checkAndSelfUpdate(rootDir = process.cwd(), options = {}) {
-	const { force = false, notifyThreadID = null } = options;
+	const { notifyThreadID = null } = options;
 
 	let config;
 	try {
-		config = global.GoatBot?.config || require(path.join(rootDir, "config.json"));
+		config = loadConfig(rootDir);
 	} catch (configErr) {
 		log.err("AUTO UPDATE", "Failed to load config.json, skipping auto update check.", configErr);
 		return { updated: false, error: configErr.message };
@@ -155,151 +446,26 @@ async function checkAndSelfUpdate(rootDir = process.cwd(), options = {}) {
 		log.warn("AUTO UPDATE", "No \"gitUpdate\" block found in config.json.");
 		return { updated: false, noRepo: true };
 	}
-	if (!force && gitUpdate.autoUpdate !== true) {
-		log.info("AUTO UPDATE", "Git auto update is disabled (set config.json > gitUpdate.autoUpdate to true to enable).");
-		return { updated: false, disabled: true };
-	}
-
-	let gitUrl = gitUpdate.url || getGitRemoteUrl(rootDir);
-	if (!gitUrl) {
-		log.warn("AUTO UPDATE", "Git auto update is enabled but no git repository URL could be found or auto-detected.");
-		return { updated: false, noRepo: true };
-	}
 
 	try {
-		let owner, repo;
-		try {
-			const parsed = parseGitUrl(gitUrl);
-			owner = parsed.owner;
-			repo = parsed.repo;
-		} catch (parseErr) {
-			const fallbackUrl = gitUpdate.url ? getGitRemoteUrl(rootDir) : null;
-			if (fallbackUrl && fallbackUrl !== gitUpdate.url) {
-				log.warn("AUTO UPDATE", `Configured URL "${gitUpdate.url}" is invalid. Trying auto-detected remote: "${fallbackUrl}"...`);
-				const parsed = parseGitUrl(fallbackUrl);
-				owner = parsed.owner;
-				repo = parsed.repo;
-				gitUrl = fallbackUrl;
-			} else {
-				throw parseErr;
-			}
+		const checked = await checkForUpdate(rootDir);
+		if (checked.error) return { updated: false, error: checked.error };
+		if (!checked.available) {
+			log.info("AUTO UPDATE", `Bot is already up to date (v${checked.localVersion}).`);
+			return { updated: false, localVersion: checked.localVersion, remoteVersion: checked.remoteVersion };
 		}
 
-		let branch = gitUpdate.branch || await getDefaultBranch(owner, repo);
-		let remotePkg;
-
-		async function tryFetchWithBranchFallback(curOwner, curRepo, curBranch) {
-			try {
-				return { pkg: await fetchRemotePackageJson(curOwner, curRepo, curBranch), activeBranch: curBranch };
-			} catch (err) {
-				if (!gitUpdate.branch && (curBranch === "main" || curBranch === "master") && err.response?.status === 404) {
-					const fallbackBranch = curBranch === "main" ? "master" : "main";
-					log.info("AUTO UPDATE", `Failed to fetch from branch "${curBranch}", trying fallback branch "${fallbackBranch}"...`);
-					const pkg = await fetchRemotePackageJson(curOwner, curRepo, fallbackBranch);
-					return { pkg, activeBranch: fallbackBranch };
-				}
-				throw err;
-			}
+		const existing = getPendingUpdate(rootDir);
+		if (!existing || existing.remoteVersion !== checked.remoteVersion) {
+			await stageUpdate(rootDir, {
+				owner: checked.owner, repo: checked.repo, branch: checked.branch,
+				localVersion: checked.localVersion, remoteVersion: checked.remoteVersion,
+				remotePkg: checked.remotePkg
+			});
 		}
 
-		try {
-			const fetchResult = await tryFetchWithBranchFallback(owner, repo, branch);
-			remotePkg = fetchResult.pkg;
-			branch = fetchResult.activeBranch;
-		} catch (err) {
-			const fallbackUrl = gitUpdate.url ? getGitRemoteUrl(rootDir) : null;
-			if (fallbackUrl && fallbackUrl !== gitUpdate.url) {
-				log.warn("AUTO UPDATE", `Configured repo "${owner}/${repo}" fetch failed (${err.message}). Trying auto-detected remote: "${fallbackUrl}"...`);
-				const fallbackParsed = parseGitUrl(fallbackUrl);
-				const fallbackOwner = fallbackParsed.owner;
-				const fallbackRepo = fallbackParsed.repo;
-				const fallbackBranch = gitUpdate.branch || await getDefaultBranch(fallbackOwner, fallbackRepo);
-				const fetchResult = await tryFetchWithBranchFallback(fallbackOwner, fallbackRepo, fallbackBranch);
-				remotePkg = fetchResult.pkg;
-				branch = fetchResult.activeBranch;
-				owner = fallbackOwner;
-				repo = fallbackRepo;
-				gitUrl = fallbackUrl;
-			} else {
-				throw err;
-			}
-		}
-
-		let localPkg;
-		try {
-			localPkg = require(path.join(rootDir, "package.json"));
-		} catch (pkgErr) {
-			log.err("AUTO UPDATE", "Failed to load local package.json", pkgErr);
-			return false;
-		}
-
-		if (!remotePkg.version) {
-			log.warn("AUTO UPDATE", "Remote package.json has no version field, skipping.");
-			return false;
-		}
-
-		if (compareVersion(remotePkg.version, localPkg.version) <= 0) {
-			log.info("AUTO UPDATE", `Bot is already up to date (v${localPkg.version}).`);
-			return { updated: false, localVersion: localPkg.version, remoteVersion: remotePkg.version };
-		}
-
-		log.master("AUTO UPDATE", `New version found on ${owner}/${repo}: v${localPkg.version} → v${remotePkg.version}. Downloading update...`);
-
-		const tmpDir = path.join(rootDir, ".autoupdate_tmp");
-		fs.emptyDirSync(tmpDir);
-
-		const extractedRoot = await downloadAndExtractZip(owner, repo, branch, tmpDir);
-		const protectedPaths = [...DEFAULT_PROTECTED_PATHS, ...(Array.isArray(gitUpdate.protect) ? gitUpdate.protect : [])];
-
-		copyRecursiveSkipProtected(extractedRoot, rootDir, protectedPaths);
-		fs.removeSync(tmpDir);
-
-		// Check if package.json dependencies changed, and if so, run npm install
-		let depsChanged = false;
-		const remoteDeps = remotePkg.dependencies || {};
-		const localDeps = localPkg.dependencies || {};
-		const remoteKeys = Object.keys(remoteDeps);
-		const localKeys = Object.keys(localDeps);
-
-		if (remoteKeys.length !== localKeys.length) {
-			depsChanged = true;
-		} else {
-			for (const key of remoteKeys) {
-				if (remoteDeps[key] !== localDeps[key]) {
-					depsChanged = true;
-					break;
-				}
-			}
-		}
-
-		if (depsChanged) {
-			log.info("AUTO UPDATE", "Dependencies in package.json have changed. Running 'npm install' to update dependencies...");
-			try {
-				const { execSync } = require("child_process");
-				execSync("npm install --no-audit --no-fund", { cwd: rootDir, stdio: "inherit" });
-				log.success("AUTO UPDATE", "Dependencies updated successfully.");
-			} catch (npmErr) {
-				log.err("AUTO UPDATE", "Failed to automatically install updated dependencies. Please run 'npm install' manually.", npmErr);
-			}
-		}
-
-		log.master("AUTO UPDATE", `Update applied: v${localPkg.version} → v${remotePkg.version}. Restarting bot to load new code...`);
-
-		if (notifyThreadID) {
-			try {
-				const markerDir = path.join(rootDir, "modules", "cmds", "tmp");
-				fs.ensureDirSync(markerDir);
-				fs.writeFileSync(path.join(markerDir, "update.txt"), `${notifyThreadID} ${Date.now()} ${localPkg.version} ${remotePkg.version}`);
-			} catch (markerErr) {
-				log.warn("AUTO UPDATE", `Failed to write update notification marker: ${markerErr.message}`);
-			}
-		}
-
-		// Exit code 2 signals a "please restart me" to process managers
-		// (PM2, nodemon, or a simple bash restart-loop), same convention
-		// already used by the chat "restart" command in this project.
-		process.exit(2);
-		return { updated: true, localVersion: localPkg.version, remoteVersion: remotePkg.version };
+		const result = await applyPendingUpdate(rootDir, { notifyThreadID });
+		return { updated: result.applied, localVersion: checked.localVersion, remoteVersion: checked.remoteVersion };
 	} catch (err) {
 		log.err("AUTO UPDATE", "Failed to check/apply git auto update", err);
 		return { updated: false, error: err.message };
@@ -307,6 +473,12 @@ async function checkAndSelfUpdate(rootDir = process.cwd(), options = {}) {
 }
 
 module.exports = {
+	checkForUpdate,
+	checkAndStageUpdate,
+	getPendingUpdate,
+	markPendingNotified,
+	clearPendingUpdate,
+	applyPendingUpdate,
 	checkAndSelfUpdate,
 	compareVersion,
 	parseGitUrl

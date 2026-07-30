@@ -167,9 +167,21 @@ async function buildContext({ api, threadModel, userModel, dashBoardModel, globa
     if (!userData && !isNaN(senderID)) userData = await usersData.create(senderID);
 
     if (!threadData && !isNaN(threadID)) {
-        if (global.temp.createThreadDataError.includes(threadID)) return null;
-        threadData = await threadsData.create(threadID);
-        global.db.receivedTheFirstMessage[threadID] = true;
+        const lastFailedAt = global.temp.createThreadDataError.get(threadID);
+        if (lastFailedAt && (Date.now() - lastFailedAt) < 60 * 1000) return null;
+        try {
+            threadData = await threadsData.create(threadID);
+            global.temp.createThreadDataError.delete(threadID);
+            global.db.receivedTheFirstMessage[threadID] = true;
+        } catch (err) {
+            if (err.name != "DATA_ALREADY_EXISTS") {
+                global.temp.createThreadDataError.set(threadID, Date.now());
+                log.err("DATABASE", `Can't create thread data for ${threadID}`, err.message || err);
+                return null;
+            }
+            threadData = global.db.allThreadData.find(t => t.threadID == threadID);
+            if (!threadData) return null;
+        }
     } else {
         if (autoRefreshThreadInfoFirstTime === true && !global.db.receivedTheFirstMessage[threadID]) {
             global.db.receivedTheFirstMessage[threadID] = true;
