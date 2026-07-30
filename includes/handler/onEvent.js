@@ -56,6 +56,7 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
             if (threadIDsChattedFirstTime.includes(threadID)) continue;
             const command = GoatBot.commands.get(commandName);
             if (!command) continue;
+            if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode)) continue;
             itemOnFirstChat.threadIDsChattedFirstTime.push(threadID);
             const getText2 = createGetText2(langCode, `${process.cwd()}/languages/cmds/${langCode}.js`, prefix, command);
             const time = getTime("DD/MM/YYYY HH:mm:ss");
@@ -67,7 +68,6 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
             command.onFirstChat({ ...parameters, isUserCallCommand, args, commandName, getLang: getText2 })
                 .then(async (handler) => {
                     if (typeof handler == "function") {
-                        if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode)) return;
                         try {
                             await handler();
                             log.info("onFirstChat", `${commandName} | ${userData.name} | ${senderID} | ${threadID} | ${args.join(" ")}`);
@@ -89,6 +89,7 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
             const roleConfig = getRoleConfig(utils, command, isGroup, threadData, commandName);
             const needRole = roleConfig.onChat;
             if (needRole > role) continue;
+            if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode)) continue;
             const getText2 = createGetText2(langCode, `${process.cwd()}/languages/cmds/${langCode}.js`, prefix, command);
             const time = getTime("DD/MM/YYYY HH:mm:ss");
             createMessageSyntaxError(commandName);
@@ -99,7 +100,6 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
             command.onChat({ ...parameters, isUserCallCommand, args, commandName, getLang: getText2 })
                 .then(async (handler) => {
                     if (typeof handler == "function") {
-                        if (isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, commandName, message, langCode)) return;
                         try {
                             await handler();
                             log.info("onChat", `${commandName} | ${userData.name} | ${senderID} | ${threadID} | ${args.join(" ")}`);
