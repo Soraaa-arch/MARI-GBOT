@@ -129,6 +129,16 @@ module.exports = (
 			case "message":
 			case "message_reply":
 			case "message_unsend":
+			// ── E2EE (Facebook "Labyrinth" encrypted chats) ─────────────────────
+			// The FCA e2ee bridge (includes/Fca/e2ee.js) normalizes incoming
+			// encrypted-chat messages to the same shape as a normal "message"
+			// event, but keeps a distinct `type` so callers can tell them apart:
+			// "e2ee_message" for a fresh message, "message_reply" (shared with
+			// the case above) when it's a reply. Since many/most 1-1 inbox
+			// threads on Messenger are now E2EE by default, without this case
+			// those DMs (and any E2EE group thread) never reached onChat/onStart/
+			// onReply at all — commands and the inbox silently stopped working.
+			case "e2ee_message":
 				onFirstChat && onFirstChat();
 				onChat && onChat();
 				onStartFunc && onStartFunc();
@@ -140,7 +150,8 @@ module.exports = (
 				onEventFunc && onEventFunc();
 				break;
 
-			case "message_reaction": {
+			case "message_reaction":
+			case "e2ee_message_reaction": {
 				onReactionFunc && onReactionFunc();
 
 				const botID = api.getCurrentUserID();
