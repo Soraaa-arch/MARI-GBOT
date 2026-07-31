@@ -354,6 +354,8 @@ module.exports = function (defaultFuncs, api, ctx) {
                         if (_last.messageID) {
                             global._e2eeMessageMap = global._e2eeMessageMap || new Map();
                             global._e2eeMessageMap.set(_last.messageID, String(threadID));
+                            global._e2eeSenderJidMap = global._e2eeSenderJidMap || new Map();
+                            global._e2eeSenderJidMap.set(_last.messageID, String(ctx.userID));
                             global._e2eeBotSentMsgIds = global._e2eeBotSentMsgIds || new Set();
                             global._e2eeBotSentMsgIds.add(_last.messageID);
                         }
@@ -366,6 +368,8 @@ module.exports = function (defaultFuncs, api, ctx) {
                     if (_last.messageID) {
                         global._e2eeMessageMap = global._e2eeMessageMap || new Map();
                         global._e2eeMessageMap.set(_last.messageID, String(threadID));
+                        global._e2eeSenderJidMap = global._e2eeSenderJidMap || new Map();
+                        global._e2eeSenderJidMap.set(_last.messageID, String(ctx.userID));
                         global._e2eeBotSentMsgIds = global._e2eeBotSentMsgIds || new Set();
                         global._e2eeBotSentMsgIds.add(_last.messageID);
                     }

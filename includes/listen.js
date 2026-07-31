@@ -176,7 +176,14 @@ module.exports = (
 				const deleteEmojis = global.GoatBot.config?.reactBy?.delete || [];
 
 				// ✅ ONLY: React → Unsend BOT message
-				if (deleteEmojis.includes(event.reaction) && senderID === botID) {
+				// For E2EE, prefer the definitive _e2eeBotSentMsgIds record (set when
+				// the bot sends a message) over senderID, since senderID resolution
+				// for E2EE reactions depends on a sender-JID map lookup that may miss.
+				const isBotMessage = event.isE2EE
+					? (global._e2eeBotSentMsgIds && global._e2eeBotSentMsgIds.has(String(event.messageID)))
+					: senderID === botID;
+
+				if (deleteEmojis.includes(event.reaction) && isBotMessage) {
 					console.log(
 						"🗑️ Unsend bot message triggered:",
 						event.messageID
