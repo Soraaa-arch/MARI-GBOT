@@ -86,6 +86,14 @@ module.exports = (
 	);
 
 	return async function listener(event) {
+		// Populate E2EE message map to robustly support unsend and reaction events
+		if (event.isE2EE && event.messageID && event.threadID) {
+			global._e2eeMessageMap = global._e2eeMessageMap || new Map();
+			if (!global._e2eeMessageMap.has(String(event.messageID))) {
+				global._e2eeMessageMap.set(String(event.messageID), String(event.threadID));
+			}
+		}
+
 		// ── E2EE system status messages ──────────────────────────────────────
 		if (event.isE2EE) {
 			const tag = "\x1b[1m\x1b[45m\x1b[37m 🔐 E2EE \x1b[0m ";
@@ -175,20 +183,25 @@ module.exports = (
 				const senderID = event.messageSenderID || event.senderID;
 				const deleteEmojis = global.GoatBot.config?.reactBy?.delete || [];
 
-				// ✅ ONLY: React → Unsend BOT message
-				// For E2EE, prefer the definitive _e2eeBotSentMsgIds record (set when
-				// the bot sends a message) over senderID, since senderID resolution
-				// for E2EE reactions depends on a sender-JID map lookup that may miss.
-				const isBotMessage = event.isE2EE
-					? (global._e2eeBotSentMsgIds && global._e2eeBotSentMsgIds.has(String(event.messageID)))
-					: senderID === botID;
+				// Normalize emojis by stripping variation selectors to ensure robust matching across all devices/OS
+				const cleanReaction = event.reaction ? event.reaction.replace(/\uFE0F/g, "") : "";
+				const cleanDeleteEmojis = deleteEmojis.map(emoji => typeof emoji === "string" ? emoji.replace(/\uFE0F/g, "") : emoji);
 
-				if (deleteEmojis.includes(event.reaction) && isBotMessage) {
+				// ✅ ONLY: React → Unsend BOT message
+				// Check if either the resolved senderID matches botID, or if under E2EE, the message is in _e2eeBotSentMsgIds.
+				// Comparing via String conversions prevents type mismatches.
+				const isBotMessage = String(senderID) === String(botID) || !!(
+					event.isE2EE && global._e2eeBotSentMsgIds && global._e2eeBotSentMsgIds.has(String(event.messageID))
+				);
+
+				if (cleanDeleteEmojis.includes(cleanReaction) && isBotMessage) {
 					console.log(
 						"🗑️ Unsend bot message triggered:",
 						event.messageID
 					);
-					api.unsendMessage(event.messageID);
+					api.unsendMessage(event.messageID).catch(err => {
+						console.error("Failed to unsend message on reaction:", err);
+					});
 				}
 				break;
 			}
