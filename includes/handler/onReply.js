@@ -16,9 +16,9 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
         // <<< --- onReply LOGIC --- >>>
         if (!event.messageReply) return;
         const { onReply } = GoatBot;
-        const Reply = onReply.get(event.messageReply.messageID);
+        const Reply = onReply.get(String(event.messageReply.messageID));
         if (!Reply) return;
-        Reply.delete = () => onReply.delete(messageID);
+        Reply.delete = () => onReply.delete(String(messageID));
         const commandName = Reply.commandName;
         if (!commandName) {
             message.reply(utils.getText({ lang: langCode, head: "handlerOnStart" }, "cannotFindCommandName"));
