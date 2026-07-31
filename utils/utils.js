@@ -250,7 +250,8 @@ function getExtFromUrl(url = "") {
 }
 
 function getPrefix(threadID) {
-	if (!threadID || isNaN(threadID))
+	const isValidID = id => !isNaN(id) || (typeof id === 'string' && id.includes('@'));
+	if (!threadID || !isValidID(threadID))
 		throw new Error('The first argument (threadID) must be a number');
 	threadID = String(threadID);
 	let prefix = global.GoatBot.config.prefix;
