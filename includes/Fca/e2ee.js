@@ -309,7 +309,7 @@ function _mapMsg(ev) {
 function _mapEdit(ev) {
   var text = ev && ev.text ? String(ev.text) : "";
   return {
-    type: "e2ee_message_edit", senderID: ev && ev.senderId != null ? String(ev.senderId) : "",
+    type: "e2ee_message_edit", senderID: ev && ev.senderId != null ? _numericId(String(ev.senderId)) : "",
     body: text, threadID: ev && ev.chatJid ? String(ev.chatJid) : "",
     messageID: ev ? ev.messageId : undefined,
     timestamp: ev && ev.timestampMs != null ? Number(ev.timestampMs) : Date.now(),

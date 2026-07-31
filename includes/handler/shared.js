@@ -67,7 +67,7 @@ function isBannedOrOnlyAdmin(userData, threadData, senderID, threadID, isGroup, 
     const { adminBot, developer, vipuser, hideNotiMessage, developerOnly, vipOnly, whiteListMode } = config;
     const role = getRole(threadData, senderID);
 
-    const infoBannedUser = userData.banned;
+    const infoBannedUser = userData?.banned || {};
     if (infoBannedUser.status == true) {
         const { reason, date } = infoBannedUser;
         if (hideNotiMessage.userBanned == false) message.reply(getBanText("userBanned", reason, date, senderID, lang));
