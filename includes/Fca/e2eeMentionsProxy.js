@@ -7,7 +7,9 @@ const _cache = new Map();
 const CACHE_TTL = 5 * 60 * 1000;
 
 function toNumericID(jid) {
-  return String(jid).split('@')[0];
+  const s = String(jid).split('@')[0];
+  const m = s.match(/^(\d+)/);
+  return m ? m[1] : s;
 }
 
 function isE2EEGroup(event) {
