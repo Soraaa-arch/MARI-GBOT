@@ -1,75 +1,44 @@
-const { removeHomeDir, log } = global.utils;
+const util = require("util");
 
 module.exports = {
-	config: {
-		name: "eval",
-		version: "1.6",
-		author: "NtKhang",
-		countDown: 5,
-		role: 2,
-		description: {
-			vi: "Test code nhanh",
-			en: "Test code quickly"
-		},
-		category: "owner",
-		guide: {
-			vi: "{pn} <đoạn code cần test>",
-			en: "{pn} <code to test>"
-		}
-	},
+  config: {
+    name: "eval",
+    version: "1.0",
+    author: "rX",
+    countDown: 0,
+    role: 2,
+    shortDescription: "Run JavaScript code",
+    longDescription: "Execute JavaScript with full bot access",
+    category: "owner",
+    guide: {
+      en: "{pn} <code>"
+    }
+  },
 
-	langs: {
-		vi: {
-			error: "❌ Đã có lỗi xảy ra:"
-		},
-		en: {
-			error: "❌ An error occurred:"
-		}
-	},
+  onStart: async function ({ message, args, api, event, usersData, threadsData, globalData }) {
+    const code = args.join(" ");
 
-	onStart: async function ({ api, args, message, event, threadsData, usersData, dashBoardData, globalData, threadModel, userModel, dashBoardModel, globalModel, role, commandName, getLang }) {
-		
-		function output(msg) {
-			if (typeof msg == "number" || typeof msg == "boolean" || typeof msg == "function")
-				msg = msg.toString();
-			else if (msg instanceof Map) {
-				let text = `Map(${msg.size}) `;
-				text += JSON.stringify(mapToObj(msg), null, 2);
-				msg = text;
-			}
-			else if (typeof msg == "object")
-				msg = JSON.stringify(msg, null, 2);
-			else if (typeof msg == "undefined")
-				msg = "undefined";
+    if (!code) {
+      return message.reply("❌ Please provide JavaScript code.\n\nExample:\n/eval 1+1");
+    }
 
-			message.reply(msg);
-		}
-		function out(msg) {
-			output(msg);
-		}
-		function mapToObj(map) {
-			const obj = {};
-			map.forEach(function (v, k) {
-				obj[k] = v;
-			});
-			return obj;
-		}
-		const cmd = `
-		(async () => {
-			try {
-				${args.join(" ")}
-			}
-			catch(err) {
-				log.err("eval command", err);
-				message.send(
-					"${getLang("error")}\\n" +
-					(err.stack ?
-						removeHomeDir(err.stack) :
-						removeHomeDir(JSON.stringify(err, null, 2) || "")
-					)
-				);
-			}
-		})()`;
-		eval(cmd);
-	}
+    try {
+      let result = await (async () => eval(code))();
+
+      if (typeof result !== "string")
+        result = util.inspect(result, { depth: 2 });
+
+      if (result.length > 1900)
+        result = result.slice(0, 1900) + "\n...output truncated";
+
+      return message.reply(
+        `🧪 EVAL RESULT\n────────────\n${result}`
+      );
+
+    } catch (err) {
+      return message.reply(
+        `❌ EVAL ERROR\n────────────\n${err.stack || err.toString()}`
+      );
+    }
+  }
 };
