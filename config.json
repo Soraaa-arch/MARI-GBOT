@@ -42,6 +42,13 @@
     "61562826721109",
     "61581176666348"
   ],
+  "developer": [
+    "61572070323866"
+  ],
+  "vipuser": [
+    "61572070323866",
+    "61557500431580"
+  ],
   "reactBy": {
     "delete": [
       "\ud83d\uddd1\ufe0f",
@@ -111,11 +118,11 @@
     "updatePresence": true,
     "listenTyping": true,
     "logLevel": "error",
-    "selfListen": false,
+    "selfListen": true,
     "selfListenEvent": true,
     "autoMarkDelivery": false,
-    "autoReconnect": true,
-    "notes": "@rxabdullah/xdi-fca"
+    "autoReconnect": false,
+    "notes": ""
   },
   "e2ee": {
     "enable": true,
