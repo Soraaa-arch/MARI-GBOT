@@ -455,7 +455,20 @@ function createBridge(ctx) {
       _callUserCallback(state.lastGlobalCallback, null, { type: "e2ee_connected", isE2EE: true });
     });
     state.client.on("deviceDataChanged", function (p) {
-      if (p && p.deviceData) ctx._e2eeDeviceData = p.deviceData;
+      if (p && p.deviceData) {
+        ctx._e2eeDeviceData = p.deviceData;
+        if (ctx.globalOptions && ctx.globalOptions.e2eeDevicePath) {
+          try {
+            var fs = require('fs');
+            var path = require('path');
+            var savePath = path.resolve(process.cwd(), ctx.globalOptions.e2eeDevicePath);
+            fs.writeFileSync(savePath, JSON.stringify(p.deviceData, null, 2), 'utf8');
+            log.info("E2EE", "Successfully saved persistent E2EE device data to " + ctx.globalOptions.e2eeDevicePath);
+          } catch (err) {
+            log.warn("E2EE", "Failed to save E2EE device data to " + ctx.globalOptions.e2eeDevicePath + ": " + err.message);
+          }
+        }
+      }
       _callUserCallback(state.lastGlobalCallback, null,
         { type: "e2ee_device_data_changed", isE2EE: true, deviceData: p ? p.deviceData : undefined });
     });
