@@ -279,7 +279,22 @@ function buildAPI(globalOptions, html, jar) {
             // saveType: 'memory' (default) or 'path' (persist keys to devicePath)
             var _saveType = _e2eeCfg.saveType || (typeof _e2eeCfg.memoryOnly !== 'undefined' ? (_e2eeCfg.memoryOnly ? 'memory' : 'path') : 'memory');
             globalOptions.e2eeMemoryOnly = (_saveType !== 'path');
-            if (_saveType === 'path' && _e2eeCfg.devicePath) globalOptions.e2eeDevicePath = _e2eeCfg.devicePath;
+            if (_saveType === 'path' && _e2eeCfg.devicePath) {
+                globalOptions.e2eeDevicePath = _e2eeCfg.devicePath;
+                // Safely load persistent device data if it exists
+                try {
+                    const _resolvedDevicePath = path.resolve(process.cwd(), _e2eeCfg.devicePath);
+                    if (fs.existsSync(_resolvedDevicePath)) {
+                        const _deviceData = JSON.parse(fs.readFileSync(_resolvedDevicePath, 'utf8'));
+                        if (_deviceData) {
+                            globalOptions.e2eeDeviceData = _deviceData;
+                            log.info("E2EE", "Successfully loaded persistent E2EE device data from " + _e2eeCfg.devicePath);
+                        }
+                    }
+                } catch (e) {
+                    log.warn("E2EE", "Failed to load persistent E2EE device data from " + _e2eeCfg.devicePath + ": " + e.message);
+                }
+            }
             if (_e2eeCfg.deviceData) globalOptions.e2eeDeviceData = _e2eeCfg.deviceData;
         }
     } catch (_) {}
